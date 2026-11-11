@@ -1,0 +1,12 @@
+# EXPLICIT SYNTHESIS OPT-IN: dsh-tui --patch config/dsh/openviking.cordis.yml .
+# OpenViking v0.5.3 MCP exposes write/admin tools. This is not read-only.
+# Disposable research COPY only: find, then read the returned viking:// URI.
+# No session.commit, automatic capture, memory writes or remote URL ingestion.
+- insert:
+    - id: mcp-openviking
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: openviking
+        transport: streamable-http
+        url: http://127.0.0.1:21933/mcp
+        failOnStartupError: true

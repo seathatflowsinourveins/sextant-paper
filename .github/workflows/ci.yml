@@ -1,0 +1,129 @@
+# Unprivileged PR code on GitHub-hosted runners. GitHub workflow syntax `jobs` and
+# `jobs.<job_id>.needs`, read 2026-11-09: jobs run in parallel by default and `needs`
+# fans them into one required check. Main's .devcontainer/Dockerfile:124-138 carries
+# the check-tool versions and checksums; cli.github.com/manual/gh_release_download,
+# read 2026-11-09.
+name: ci
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+env:
+  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+  GITLEAKS_VERSION: 8.30.1
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+  ACTIONLINT_VERSION: 1.7.12
+  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+  SHELLCHECK_VERSION: 0.11.0
+  SHELLCHECK_SHA256: b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
+  JUST_VERSION: 1.59.0
+  JUST_SHA256: 409044617b6f06517c1035e55ca38c8c856ff8b650e41bc2aa1ef82d5903a23e
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2, 2026-10-22
+        with:
+          enable-cache: true
+          save-cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Pinned check tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/actions/ci-tools/install.sh actionlint shellcheck just
+      - name: Agents' pinned node tools
+        run: |
+          npm ci --prefix .devcontainer/agents --ignore-scripts --no-audit --no-fund
+          echo "$GITHUB_WORKSPACE/.devcontainer/agents/node_modules/.bin" >> "$GITHUB_PATH"
+      - run: just lint
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2, 2026-10-22
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Pinned check tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/actions/ci-tools/install.sh just
+      - name: Agents' pinned node tools
+        run: |
+          npm ci --prefix .devcontainer/agents --ignore-scripts --no-audit --no-fund
+          echo "$GITHUB_WORKSPACE/.devcontainer/agents/node_modules/.bin" >> "$GITHUB_PATH"
+      - run: just test tests/proofs
+  budgets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2, 2026-10-22
+        with:
+          enable-cache: true
+          save-cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Pinned check tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/actions/ci-tools/install.sh just
+      - run: just test tests/repo
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Pinned check tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/actions/ci-tools/install.sh gitleaks just
+      - run: just secrets
+  ci:
+    name: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: [lint, tests, budgets, secrets]
+    if: always()
+    steps:
+      - name: Fail unless every parallel job succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = {name: job["result"] for name, job in json.loads(os.environ["NEEDS"]).items()}
+          print("parallel jobs:", results)
+          failed = [f"{name}={result}" for name, result in sorted(results.items()) if result != "success"]
+          if failed:
+              print("::error::not successful: " + ", ".join(failed))
+              sys.exit(1)
+          PY

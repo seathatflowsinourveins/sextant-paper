@@ -1,0 +1,16 @@
+{
+  "name": "sextant-dsh-review-cmd",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Registration shim: mounts @apcamargo/dsh-review under a distinct loader id so the quality @stardustlc/dsh-review tools keep their id.",
+  "exports": "./index.js",
+  "dependencies": {
+    "@apcamargo/dsh-review": "github:apcamargo/dsh-review#4997159b99322f7551b33d72678e7a14c5282bbf"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

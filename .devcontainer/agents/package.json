@@ -1,0 +1,17 @@
+{
+  "name": "sextant-agents",
+  "private": true,
+  "description": "npm-installed runtimes for the sandbox image. These versions live only here and in the lockfile.",
+  "dependencies": {
+    "@colbymchenry/codegraph": "1.6.2",
+    "@deepseek-ai/dsh": "0.2.2-rc.1",
+    "@openai/codex": "0.167.0",
+    "@playwright/mcp": "0.0.84",
+    "@upstash/context7-mcp": "4.5.0",
+    "danger": "14.1.0",
+    "exa-mcp-server": "3.4.3",
+    "pyright": "1.1.414",
+    "typescript": "7.0.2",
+    "typescript-language-server": "6.0.3"
+  }
+}

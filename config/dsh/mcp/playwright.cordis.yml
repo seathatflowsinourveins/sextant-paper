@@ -1,0 +1,11 @@
+# microsoft/playwright-mcp@v0.0.84 README; the Claude shelf's locked @playwright/mcp 0.0.84, headless and isolated.
+# Opt-in per job: dsh --patch config/dsh/mcp/playwright.cordis.yml (not in any bundle; browser memory is unmeasured).
+- insert:
+    - id: mcp-playwright
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: playwright
+        transport: stdio
+        command: playwright-mcp
+        args: ['--headless', '--isolated']
+        failOnStartupError: true

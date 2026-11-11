@@ -1,0 +1,19 @@
+# The design's receipt set (docs/design.md:126), by its upstream diagnostic, harvested verbatim:
+# northstar@b384d298d217d3f8d9aa83356994629536a34795:config/dsh/native-startup.mjs, wired as its
+# scripts/ns-native-install.mjs wires the dsh-tui profile. Names only: one 0600 log per launch.
+# Use with the OpenViking opt-in: dsh-tui --patch config/dsh/openviking.cordis.yml --patch config/dsh/startup-receipt.cordis.yml .
+# Then: node scripts/dsh-native-acceptance.mjs --run --tui <the log it names>.
+- insert:
+    - id: northstar-native-startup
+      name: ./native-startup.mjs
+      config:
+        profile: tui
+        inventoryModule: !!js >-
+          'file://' + process.env.HOME +
+          '/.local/share/sextant-agents/node_modules/@deepseek-ai/dsh-host-plugin-inventory/lib/index.js'
+        tui:
+          overlays: [context7, exa, deepwiki, paper-search, brooks-review, reference-checker, session-search, openviking, billion-context]
+          holds:
+            - {id: openresearch, reason: 'not selected for Sextant (ADR-0022)'}
+            - {id: weknora, reason: 'named hold: no service or credential provisioned (docs/design.md:126)'}
+          orcaHooks: attached

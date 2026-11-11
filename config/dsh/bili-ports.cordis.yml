@@ -1,0 +1,8 @@
+# Fail closed: without its two Sextant ports, billion-context does not load at all, rather than fall back
+# to upstream's 18787 and hop, which reaches the old lanes' proxy on the shared network (issue #56).
+# Both rows go together, as upstream's dsh.bundle.patch.yml warns (docs/handbook/retrieval.md).
+# Settings: deploy/wsl/sextant.user-data for logins, deploy/wsl/orca-serve-limits.conf for Orca's tabs.
+- id: bili-native
+  disabled: !!js '!(process.env.ACP_PORT && process.env.BILI_ZONE_PORT)'
+- id: bili-compaction-gate
+  disabled: !!js '!(process.env.ACP_PORT && process.env.BILI_ZONE_PORT)'

@@ -1,0 +1,19 @@
+# Cavan-Ou/dsh-observation-journal 0.1.0 (lib/index.js Config header; README
+# Config): obsFile and redact are its patch-entry keys. One card per profile,
+# in that profile's own directory under the lane home (profileContext.dir is
+# $DSH_HOME/profiles/<name>, dsh-app-boot profile-context); the plugin's own
+# $DSH_HOME/observations.md default sits behind it. The extra redact regexes
+# stack on the plugin's built-in secret table for the file it writes, shaped
+# as gitleaks 8.30.1's default rules github-pat, github-fine-grained-pat,
+# aws-access-token and private-key (config/gitleaks.toml at v8.30.1, the
+# Dockerfile's pin).
+- id: dsh-observation-journal
+  config:
+    obsFile: !!js >-
+      ((ctx.get('profileContext') || {}).dir || process.env.DSH_HOME ||
+      (process.env.HOME + '/.dsh')) + '/observations.md'
+    redact:
+      - 'ghp_[0-9a-zA-Z]{36}'
+      - 'github_pat_\w{82}'
+      - '\b(?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16}\b'
+      - '-----BEGIN[ A-Z0-9_-]{0,100}PRIVATE KEY-----'

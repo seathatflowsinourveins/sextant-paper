@@ -1,0 +1,11 @@
+# colbymchenry/codegraph@v1.6.2 README Manual Setup; the Claude shelf's locked @colbymchenry/codegraph 1.6.2.
+# Opt-in per job: dsh --patch config/dsh/mcp/codegraph.cordis.yml. Indexing stays the user's decision.
+- insert:
+    - id: mcp-codegraph
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: codegraph
+        transport: stdio
+        command: codegraph
+        args: ['serve', '--mcp']
+        failOnStartupError: true

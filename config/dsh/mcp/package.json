@@ -1,0 +1,19 @@
+{
+  "name": "sextant-dsh-mcp",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The lane MCP set for every dsh profile: dsh-tui composes it through sextant-dsh-research; acp and headless link it with dsh plugin add.",
+  "engines": {"dsh": "0.2.2-rc.1"},
+  "dsh": {
+    "bundle": {
+      "patch": [
+        "./context7.cordis.yml",
+        "./exa.cordis.yml",
+        "./deepwiki.cordis.yml",
+        "./paper-search.cordis.yml",
+        "./source-tools.cordis.yml",
+        "./max-effort.cordis.yml"
+      ]
+    }
+  }
+}

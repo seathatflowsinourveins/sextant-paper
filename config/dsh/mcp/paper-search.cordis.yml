@@ -1,0 +1,11 @@
+# openags/paper-search-mcp@v0.1.4, installed by setup.sh, not downloaded at launch.
+- insert:
+    - id: mcp-paper-search
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: paper-search
+        transport: stdio
+        command: paper-search-mcp
+        env:
+          PAPER_SEARCH_MCP_ENV_FILE: /dev/null
+        failOnStartupError: true

@@ -1,0 +1,34 @@
+{
+  "name": "sextant-dsh-quality",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The dsh quality landscape (RECONCILE row P1): parity.py adds each profile's pinned plugins and links this bundle's patches. devDependencies only record the pins, as in config/dsh/package.json; parity.json is the installer spec and a repo test holds the two records equal.",
+  "engines": {"dsh": "0.2.2-rc.1"},
+  "devDependencies": {
+    "@stardustlc/dsh-review": "0.3.0",
+    "dsh-goalloop-agentteams": "github:samirliu/dsh-goalloop-agentteams#6b4b1fad8cd61f98e6eedbb4f12ed10b5dc93f17",
+    "@apcamargo/dsh-review": "github:apcamargo/dsh-review#4997159b99322f7551b33d72678e7a14c5282bbf",
+    "dsh-doublecheck": "0.9.29",
+    "dsh-openspec-opsx": "1.0.0",
+    "dsh-github-skills": "0.2.1",
+    "dsh-qa-skills": "0.6.0",
+    "dsh-lsp-actions": "0.5.17",
+    "dsh-auto-review": "0.13.8",
+    "aegis": "github:GanyuanRan/Aegis#0461c211e4d812f0b215fab240a68a25c1e22424",
+    "dsh-flakefinder": "0.3.5",
+    "@jiangzhenguo/dsh-codegraph": "1.2.2",
+    "dsh-deepread": "1.0.1",
+    "dsh-client-auto-continue": "0.17.0",
+    "dsh-observation-journal": "github:Cavan-Ou/dsh-observation-journal#0fbbaf098d3cf462c4e315771b75d9a25b82ff10",
+    "dsh-switchman": "1.8.0",
+    "@tt-a1i/archify-dsh": "1.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": [
+        "./lsp-actions.cordis.yml",
+        "./journal.cordis.yml"
+      ]
+    }
+  }
+}

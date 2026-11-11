@@ -1,0 +1,265 @@
+{
+  "schema": 1,
+  "lock": "config/dsh/profile.lock.json",
+  "source": "~/.dsh-full/profiles/dsh-tui/package.json, 24-bundle parity recipe; runtime replaced with official headless; no memory plugins",
+  "engine": "0.2.2-rc.1",
+  "engine_authority": "reuses main's dsh pin (lead ruling 2026-11-09)",
+  "pnpm": "11.28.8",
+  "interactive": {
+    "profile": "dsh-tui",
+    "bundles": [
+      "@deepseek-ai/dsh-base",
+      "@deepseek-harness-tui/dsh-tui",
+      "billion-context",
+      "brooks-lint",
+      "dsh-reference-checker",
+      "@jiangzhenguo/dsh-codegraph",
+      "@stardustlc/dsh-review",
+      "@tt-a1i/archify-dsh",
+      "aegis",
+      "dsh-auto-review",
+      "dsh-client-auto-continue",
+      "dsh-deepread",
+      "dsh-doublecheck",
+      "dsh-flakefinder",
+      "dsh-github-skills",
+      "dsh-lsp-actions",
+      "dsh-observation-journal",
+      "dsh-openspec-opsx",
+      "dsh-qa-skills",
+      "sextant-dsh-review-cmd",
+      "dsh-goalloop-agentteams",
+      "sextant-dsh-hard-lines",
+      "sextant-dsh-quality",
+      "sextant-dsh-research",
+      "dsh-test-autofix"
+    ],
+    "dependencies": [
+      {
+        "package": "@deepseek-ai/dsh-hook-protocol",
+        "spec": "0.2.2-rc.1"
+      },
+      {
+        "package": "@deepseek-ai/dsh-hooks-claude-code",
+        "spec": "0.2.2-rc.1"
+      },
+      {
+        "package": "@deepseek-harness-tui/dsh-tui",
+        "spec": "0.19.0"
+      },
+      {
+        "package": "@jiangzhenguo/dsh-codegraph",
+        "spec": "1.2.2"
+      },
+      {
+        "package": "@stardustlc/dsh-review",
+        "spec": "0.3.0"
+      },
+      {
+        "package": "@tt-a1i/archify-dsh",
+        "spec": "1.0.0"
+      },
+      {
+        "package": "aegis",
+        "spec": "github:GanyuanRan/Aegis#0461c211e4d812f0b215fab240a68a25c1e22424"
+      },
+      {
+        "package": "billion-context",
+        "spec": "0.1.212"
+      },
+      {
+        "package": "brooks-lint",
+        "spec": "1.9.1"
+      },
+      {
+        "package": "dsh-auto-review",
+        "spec": "0.13.8"
+      },
+      {
+        "package": "dsh-client-auto-continue",
+        "spec": "0.17.0"
+      },
+      {
+        "package": "dsh-deepread",
+        "spec": "1.0.1"
+      },
+      {
+        "package": "dsh-doublecheck",
+        "spec": "0.9.29"
+      },
+      {
+        "package": "dsh-flakefinder",
+        "spec": "0.3.5"
+      },
+      {
+        "package": "dsh-github-skills",
+        "spec": "0.2.1"
+      },
+      {
+        "package": "dsh-goalloop-agentteams",
+        "spec": "github:samirliu/dsh-goalloop-agentteams#6b4b1fad8cd61f98e6eedbb4f12ed10b5dc93f17"
+      },
+      {
+        "package": "dsh-lsp-actions",
+        "spec": "0.5.17"
+      },
+      {
+        "package": "dsh-observation-journal",
+        "spec": "github:Cavan-Ou/dsh-observation-journal#0fbbaf098d3cf462c4e315771b75d9a25b82ff10"
+      },
+      {
+        "package": "dsh-openspec-opsx",
+        "spec": "1.0.0"
+      },
+      {
+        "package": "dsh-qa-skills",
+        "spec": "0.6.0"
+      },
+      {
+        "package": "dsh-reference-checker",
+        "spec": "1.1.1"
+      },
+      {
+        "package": "dsh-test-autofix",
+        "spec": "github:1250589385/dsh-test-autofix#2246371b2869db52c0f9a77098777d66dbdbad32"
+      },
+      {
+        "package": "sextant-dsh-hard-lines",
+        "spec": "link:config/dsh/hard-lines",
+        "link": "config/dsh/hard-lines",
+        "version": "0.0.0"
+      },
+      {
+        "package": "sextant-dsh-quality",
+        "spec": "link:config/dsh/quality",
+        "link": "config/dsh/quality",
+        "version": "0.0.0"
+      },
+      {
+        "package": "sextant-dsh-research",
+        "spec": "link:config/dsh",
+        "link": "config/dsh",
+        "version": "0.0.0",
+        "extra_live": [
+          "pins"
+        ]
+      },
+      {
+        "package": "sextant-dsh-review-cmd",
+        "spec": "link:config/dsh/review-cmd",
+        "link": "config/dsh/review-cmd",
+        "version": "0.0.0"
+      }
+    ]
+  },
+  "headless": {
+    "profile": "dsh-headless",
+    "github_plugin": "github:PerryLink/dsh-github#2fc0009cdb84945fdd8066be0a7f98aed9910c9b",
+    "bundles": [
+      {
+        "package": "@deepseek-ai/dsh-base",
+        "spec": "@deepseek-ai/dsh-base@0.2.2-rc.1"
+      },
+      {
+        "package": "@deepseek-ai/dsh-headless",
+        "spec": "@deepseek-ai/dsh-headless@0.2.2-rc.1"
+      },
+      {
+        "package": "billion-context",
+        "spec": "billion-context@0.1.212"
+      },
+      {
+        "package": "brooks-lint",
+        "spec": "brooks-lint@1.9.1"
+      },
+      {
+        "package": "dsh-reference-checker",
+        "spec": "dsh-reference-checker@1.1.1"
+      },
+      {
+        "package": "@jiangzhenguo/dsh-codegraph",
+        "spec": "@jiangzhenguo/dsh-codegraph@1.2.2"
+      },
+      {
+        "package": "@stardustlc/dsh-review",
+        "spec": "@stardustlc/dsh-review@0.3.0"
+      },
+      {
+        "package": "@tt-a1i/archify-dsh",
+        "spec": "@tt-a1i/archify-dsh@1.0.0"
+      },
+      {
+        "package": "aegis",
+        "spec": "github:GanyuanRan/Aegis#0461c211e4d812f0b215fab240a68a25c1e22424"
+      },
+      {
+        "package": "dsh-auto-review",
+        "spec": "dsh-auto-review@0.13.8"
+      },
+      {
+        "package": "dsh-client-auto-continue",
+        "spec": "dsh-client-auto-continue@0.17.0"
+      },
+      {
+        "package": "dsh-deepread",
+        "spec": "dsh-deepread@1.0.1"
+      },
+      {
+        "package": "dsh-doublecheck",
+        "spec": "dsh-doublecheck@0.9.29"
+      },
+      {
+        "package": "dsh-flakefinder",
+        "spec": "dsh-flakefinder@0.3.5"
+      },
+      {
+        "package": "dsh-github-skills",
+        "spec": "dsh-github-skills@0.2.1"
+      },
+      {
+        "package": "dsh-lsp-actions",
+        "spec": "dsh-lsp-actions@0.5.17"
+      },
+      {
+        "package": "dsh-observation-journal",
+        "spec": "github:Cavan-Ou/dsh-observation-journal#0fbbaf098d3cf462c4e315771b75d9a25b82ff10"
+      },
+      {
+        "package": "dsh-openspec-opsx",
+        "spec": "dsh-openspec-opsx@1.0.0"
+      },
+      {
+        "package": "dsh-qa-skills",
+        "spec": "dsh-qa-skills@0.6.0"
+      },
+      {
+        "package": "sextant-dsh-review-cmd",
+        "spec": "link:config/dsh/review-cmd",
+        "link": "config/dsh/review-cmd",
+        "version": "0.0.0"
+      },
+      {
+        "package": "dsh-goalloop-agentteams",
+        "spec": "github:samirliu/dsh-goalloop-agentteams#6b4b1fad8cd61f98e6eedbb4f12ed10b5dc93f17"
+      },
+      {
+        "package": "sextant-dsh-hard-lines",
+        "spec": "link:config/dsh/hard-lines",
+        "link": "config/dsh/hard-lines",
+        "version": "0.0.0"
+      },
+      {
+        "package": "sextant-dsh-quality",
+        "spec": "link:config/dsh/quality",
+        "link": "config/dsh/quality",
+        "version": "0.0.0"
+      },
+      {
+        "package": "sextant-dsh-research",
+        "spec": "link:config/dsh",
+        "link": "config/dsh",
+        "version": "0.0.0"
+      }
+    ]
+  }
+}

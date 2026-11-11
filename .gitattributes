@@ -1,0 +1,5 @@
+.github/workflows/*.lock.yml linguist-generated=true
+# docs/manifest.md is an append-mostly table that every lane PR extends. Git's built-in union driver
+# keeps both sides' added rows instead of conflicting (gitattributes(5), git 2.56.0).
+# tests/proofs/test_manifest_union.py refuses a duplicated row key, which union alone cannot stop.
+docs/manifest.md merge=union

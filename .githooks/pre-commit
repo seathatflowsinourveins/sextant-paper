@@ -1,0 +1,3 @@
+#!/bin/sh
+# The only local git hook, from gitleaks' README. CI runs the same scan as a required check.
+exec gitleaks git --pre-commit --staged --no-banner --redact

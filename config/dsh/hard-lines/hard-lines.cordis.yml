@@ -1,0 +1,6 @@
+# AGENTS.md's hard-line commands, refused by dsh's monotonic tool guard in every profile that links this
+# bundle: deploy/wsl/hard-lines/install.sh links it into acp, headless and dsh-tui, as setup.sh links
+# ../package.json's research bundle (deepseek-harness@dsh-v0.2.2-rc.1, docs/user/develop/basic/publish.md).
+- insert:
+    - id: sextant-hard-lines
+      name: ./hard-lines.mjs

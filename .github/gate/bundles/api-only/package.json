@@ -1,0 +1,10 @@
+{
+  "name": "sextant-dsh-gate-api-only",
+  "description": "Reuses main's monotonic ctx.tools.guard pattern from config/dsh/hard-lines/hard-lines.mjs:2-7 for API-only PR review.",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.mjs",
+  "engines": {"dsh": "0.2.2-rc.1"},
+  "dsh": {"bundle": {"patch": "./cordis.patch.yml"}}
+}

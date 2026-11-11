@@ -1,0 +1,311 @@
+# Three scheduled upkeep jobs, each one headless dsh worker on a free
+# GitHub-hosted runner. The shape is `.github/workflows/dsh-worker.yml`'s; only
+# the trigger, the brief resolution and the outcome path differ.
+#
+# Sources: GitHub, "Events that trigger workflows: schedule" and the `github`
+# context's `event.schedule` / `repository.default_branch` fields, read
+# 2026-11-09; PerryLink/dsh-github@2fc0009c:action.yml:51-62,118-161 and
+# scripts/action-patch.mjs:49-152; peter-evans/create-pull-request@v8.1.1
+# README.md:50-95; actions/create-github-app-token@v3.3.0 action.yml:1-40;
+# renovatebot/renovate@44.181.5
+# d58ffdb10f533fa86c3fa2c46f4f6b6a72c60f85 lib/modules/platform/local/readme.md.
+# The worker edits only the checked-out workspace. It reads GitHub through a
+# read-only App token, never receives a broker, paper or live key, and never
+# runs on a pull request. Scheduled runs fire on the default branch only, which
+# is one branch before the identity cutover and another after it.
+name: upkeep
+on:
+  schedule:
+    - cron: '0 9 * * *'
+    - cron: '17 5 * * *'
+    - cron: '25 17 * * 1'
+  workflow_dispatch:
+    inputs:
+      brief:
+        description: 'Upkeep brief to run'
+        required: true
+        type: choice
+        options:
+          - upkeep-models
+          - upkeep-dependencies
+          - upkeep-panel
+permissions: {}
+jobs:
+  upkeep:
+    if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.event_name == 'schedule' || github.actor == github.repository_owner) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: hosted-workers
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: upkeep
+      cancel-in-progress: false
+    env:
+      DSH_VERSION: 0.2.2-rc.1
+      DSH_GITHUB_VERSION: 0.7.27
+      RENOVATE_VERSION: 44.181.5
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve the upkeep brief
+        id: brief
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_BRIEF: ${{ inputs.brief }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            case "$SCHEDULE" in
+              '0 9 * * *') brief=upkeep-models ;;
+              '17 5 * * *') brief=upkeep-dependencies ;;
+              '25 17 * * 1') brief=upkeep-panel ;;
+              *)
+                echo "::error::no upkeep brief for schedule '$SCHEDULE'"
+                exit 1
+                ;;
+            esac
+          else
+            brief="${INPUT_BRIEF}"
+          fi
+          case "$brief" in
+            upkeep-models|upkeep-dependencies|upkeep-panel) ;;
+            *)
+              echo "::error::unknown upkeep brief '$brief'"
+              exit 1
+              ;;
+          esac
+          brief_path=".github/dsh-workers/briefs/${brief}.md"
+          if [[ ! -f "$brief_path" ]]; then
+            echo "::error::missing brief: $brief_path"
+            exit 1
+          fi
+          delimiter="BRIEF_$(date +%s)_$RANDOM"
+          {
+            echo "brief=$brief"
+            echo "text<<$delimiter"
+            cat "$brief_path"
+            echo
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install dsh, dsh-github and Renovate
+        shell: bash
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-home
+          DSH_PROFILE_DIR: ${{ runner.temp }}/dsh-home/profiles/headless
+        run: | # zizmor: ignore[adhoc-packages] copied upstream action install
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@${DSH_VERSION}"
+          mkdir -p "$DSH_PROFILE_DIR"
+          printf '{"private": true}\n' > "$DSH_PROFILE_DIR/package.json"
+          npm install --prefix "$DSH_PROFILE_DIR" --legacy-peer-deps --package-lock=false --no-save --no-audit --no-fund "@perrylink/dsh-github@${DSH_GITHUB_VERSION}"
+          npm install --global --no-audit --no-fund --ignore-scripts "renovate@${RENOVATE_VERSION}"
+
+      - name: Compose the parity profile with the hard-lines bundle
+        shell: bash
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-home
+        run: | # zizmor: ignore[adhoc-packages] copied upstream action install
+          set -euo pipefail
+          npm install --global --no-audit --no-fund pnpm@11.28.8
+          python3 .github/gate/parity-entry.py
+
+      - name: Generate the worker overlay and task from the brief
+        id: prepare
+        shell: bash
+        env:
+          INPUT_TASK: report
+          INPUT_TASK_PROMPT: ${{ steps.brief.outputs.text }}
+          INPUT_OWNER_REPO: ${{ github.repository }}
+          INPUT_OUTPUT_DIR: ${{ runner.temp }}/dsh-worker
+        run: node .github/actions/dsh-github/scripts/action-patch.mjs
+
+      - name: Append the max-effort patch and the headless services
+        shell: bash
+        env:
+          WORKER_OUT: ${{ runner.temp }}/dsh-worker
+        run: |
+          set -euo pipefail
+          cat config/dsh/mcp/max-effort.cordis.yml >> "$WORKER_OUT/dsh-github-ci.cordis.yml"
+          cat .github/gate/headless-services.cordis.yml >> "$WORKER_OUT/dsh-github-ci.cordis.yml"
+
+      - name: Disable the review-only guards and set the upkeep persona
+        shell: bash
+        env:
+          WORKER_OUT: ${{ runner.temp }}/dsh-worker
+        run: |
+          set -euo pipefail
+          cat >> "$WORKER_OUT/dsh-github-ci.cordis.yml" <<'YAML'
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              text: |
+                You are a hosted Sextant upkeep worker. Follow the task brief exactly.
+                Work only inside the checked-out repository. Do not push, commit or
+                call a GitHub write API; read GitHub only through the read-only
+                GH_TOKEN. Never touch a broker, paper or live account. Finish by
+                writing the files the brief names.
+              complete: true
+              includeRuntimeContext: false
+
+          - id: sextant-gate-api-only
+            disabled: true
+
+          - id: dsh-github
+            disabled: true
+          YAML
+
+      - name: Mint the read-only evidence token
+        id: read-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.SEXTANT_APP_ID }}
+          private-key: ${{ secrets.SEXTANT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: read
+
+      - name: Fetch the previous run receipt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          UPKEEP_BRIEF: ${{ steps.brief.outputs.brief }}
+        run: |
+          set -euo pipefail
+          mkdir -p .upkeep
+          touch .upkeep/previous-receipt.md
+          note="$(gh issue list --repo "$GH_REPO" --state all --search '"Hosted upkeep receipts" in:title' --json number,title --jq '.[] | select(.title == "Hosted upkeep receipts") | .number' | head -n 1)"
+          if [[ -n "$note" ]]; then
+            # The tracker holds one receipt per brief; take the last one for this brief,
+            # never another brief's newer receipt.
+            gh issue view "$note" --repo "$GH_REPO" --json body,comments \
+              | jq -r --arg brief "$UPKEEP_BRIEF" '([.body] + [.comments[].body]) | map(select(startswith("### `" + $brief + "`"))) | last // empty' >> .upkeep/previous-receipt.md
+          fi
+
+      - name: Run the dsh headless upkeep worker
+        id: worker
+        shell: bash
+        env:
+          DSH_HOME: ${{ runner.temp }}/dsh-home
+          WORKER_OUT: ${{ runner.temp }}/dsh-worker
+          DSH_PERMISSION_MODE: workspace-write
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DSH_TELEMETRY_DISABLED: '1'
+          GH_TOKEN: ${{ steps.read-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          UPKEEP_BRIEF: ${{ steps.brief.outputs.brief }}
+          UPKEEP_EVENT: ${{ github.event_name }}
+          UPKEEP_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          UPKEEP_PREVIOUS_RECEIPT: .upkeep/previous-receipt.md
+        run: |
+          set -euo pipefail
+          dsh --profile headless --patch "$WORKER_OUT/dsh-github-ci.cordis.yml" "$(cat "$WORKER_OUT/task.txt")"
+
+      - name: Collect the worker outcome
+        id: outcome
+        shell: bash
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          if [[ ! -s .upkeep/report.md ]]; then
+            echo "::error::the worker left no .upkeep/report.md receipt"
+            exit 1
+          fi
+          cp .upkeep/report.md "$RUNNER_TEMP/upkeep-report.md"
+          path='report'
+          if [[ -s .upkeep/pr-body.md ]]; then
+            path='pr'
+          fi
+          {
+            echo "path=$path"
+            if [[ "$path" == "pr" ]]; then
+              delimiter="PR_BODY_$(date +%s)_$RANDOM"
+              echo "pr_body<<$delimiter"
+              cat .upkeep/pr-body.md
+              echo
+              echo "$delimiter"
+            else
+              echo "pr_body="
+            fi
+          } >> "$GITHUB_OUTPUT"
+          cat .upkeep/report.md >> "$GITHUB_STEP_SUMMARY"
+          rm -rf .upkeep
+
+      - name: Comment the run receipt
+        if: ${{ steps.outcome.outputs.path == 'report' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUNNER_TEMP: ${{ runner.temp }}
+          UPKEEP_BRIEF: ${{ steps.brief.outputs.brief }}
+          UPKEEP_EVENT: ${{ github.event_name }}
+          UPKEEP_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="Hosted upkeep receipts"
+          note="$RUNNER_TEMP/upkeep-note.md"
+          {
+            echo "### \`${UPKEEP_BRIEF}\` — ${UPKEEP_EVENT} run"
+            echo
+            echo "Run: ${UPKEEP_RUN_URL}"
+            echo
+            cat "$RUNNER_TEMP/upkeep-report.md"
+          } > "$note"
+          number="$(gh issue list --repo "$GH_REPO" --state all --search "\"$title\" in:title" --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)"
+          if [[ -z "$number" ]]; then
+            gh issue create --repo "$GH_REPO" --title "$title" --body-file "$note"
+          else
+            gh issue comment "$number" --repo "$GH_REPO" --body-file "$note"
+          fi
+
+      - name: Mint the pull-request app token
+        if: ${{ steps.outcome.outputs.path == 'pr' }}
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.SEXTANT_APP_ID }}
+          private-key: ${{ secrets.SEXTANT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Open or update the upkeep pull request
+        id: cpr
+        if: ${{ steps.outcome.outputs.path == 'pr' }}
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: upkeep/${{ steps.brief.outputs.brief }}
+          base: ${{ github.event.repository.default_branch }}
+          title: 'upkeep: ${{ steps.brief.outputs.brief }}'
+          body: ${{ steps.outcome.outputs.pr_body }}
+          commit-message: 'upkeep: ${{ steps.brief.outputs.brief }}'
+          delete-branch: true
+
+      - name: Fail when the pull request was not created
+        if: ${{ steps.outcome.outputs.path == 'pr' && steps.cpr.outputs.pull-request-number == '' }}
+        shell: bash
+        run: |
+          echo "::error::the worker prepared a pull request body but no pull request was created"
+          exit 1

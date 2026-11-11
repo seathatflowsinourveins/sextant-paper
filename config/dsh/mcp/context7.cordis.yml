@@ -1,0 +1,11 @@
+# upstash/context7@4.5.0; dsh-mcp-client at dsh-v0.2.1-rc.5. See manifest.
+- insert:
+    - id: mcp-context7
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: context7
+        transport: streamable-http
+        url: https://mcp.context7.com/mcp
+        headers: !!js >-
+          process.env.CONTEXT7_API_KEY ? { Authorization: `Bearer ${process.env.CONTEXT7_API_KEY}` } : {}
+        failOnStartupError: true

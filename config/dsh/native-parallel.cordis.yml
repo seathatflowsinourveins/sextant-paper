@@ -1,0 +1,19 @@
+# Native parallel dispatch (goal #378 row 7): one fan-out ceiling for the workflow engine
+# and the subagent service. UNCALIBRATED (ADR-0018): 8 is the subagent service's own
+# default, not a measured optimum.
+#
+# Sources, dsh 0.2.2-rc.1 deepseek-ai/deepseek-harness@66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db:
+# - packages/workflow/workflow-ptc/README.md:42,49: maxConcurrentAgents defaults to 0,
+#   "0 resolves from available CPU parallelism"; the provider's maxPendingCalls shares slots.
+# - packages/subagent/subagent/README.md:53-57: maxActiveSubagents defaults to 8; at
+#   capacity a child is refused with ACTIVATION_LIMIT_REACHED and admission does not queue.
+# A workflow fan-out wider than the subagent cap therefore starts children the subagent
+# service refuses. The patch replaces a row's whole config, so each row restates every
+# key it keeps (dsh-TUI v0.19.0 cordis.patch.yml).
+- id: subagent
+  config:
+    maxActiveSubagents: 8
+- id: workflow-ptc
+  config:
+    provider: spawn
+    maxConcurrentAgents: 8

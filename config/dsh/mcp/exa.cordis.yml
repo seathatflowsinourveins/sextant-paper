@@ -1,0 +1,11 @@
+# exa-mcp-server@3.4.2: hosted MCP's documented tool selection and optional key.
+- insert:
+    - id: mcp-exa
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: exa
+        transport: streamable-http
+        url: https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa
+        headers: !!js >-
+          process.env.EXA_API_KEY ? { 'x-api-key': process.env.EXA_API_KEY } : {}
+        failOnStartupError: true

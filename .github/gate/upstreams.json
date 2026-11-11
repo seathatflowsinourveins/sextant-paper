@@ -1,0 +1,203 @@
+{
+  "read_date": "2026-11-09",
+  "new_pin_cutoff": "2026-10-25",
+  "engine": {
+    "repository": "deepseek-ai/deepseek-harness",
+    "version": "0.2.2-rc.1",
+    "sha": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+    "authority": "reuses main's dsh pin (lead ruling 2026-11-09)",
+    "main_paths": [
+      "config/dsh/package.json:5,8-9",
+      "config/dsh/mcp/package.json:6",
+      "config/dsh/hard-lines/package.json:5",
+      "config/dsh/hard-lines/hard-lines.mjs:2-7"
+    ],
+    "upstream_paths": [
+      "apps/cli/README.md:14,20,40-48",
+      "packages/core/tools/README.md:92",
+      "src/contracts.ts:391"
+    ]
+  },
+  "components": {
+    "dsh-github": {
+      "repository": "PerryLink/dsh-github",
+      "version": "v0.7.27",
+      "sha": "2fc0009cdb84945fdd8066be0a7f98aed9910c9b",
+      "published_at": "2026-10-23T13:25:24Z",
+      "paths": [
+        "action.yml:51-62,118-161",
+        "scripts/action-patch.mjs:49-152",
+        "scripts/action-post.mjs:29-61",
+        "src/ci/pipeline.ts:142-147,366-450",
+        "src/ci/tool.ts:123-126, repository-qualified pr avoids the unused ownerRepo argument"
+      ],
+      "excluded_release": "v0.7.28, 2026-10-27, newer than cutoff",
+      "integration_status": "Upstream review scripts and original installer/run/post commands retained unchanged; metadata binds inputs and full SHAs, and added steps compose native parity helpers and main max-effort patch."
+    },
+    "codex-action": {
+      "repository": "openai/codex-action",
+      "version": "v1.13",
+      "sha": "bdf19a4a223ec2549a3e2274a0cf61556bc07675",
+      "committed_at": "2026-10-05T23:22:26Z",
+      "paths": [
+        "action.yml:5-70,111-145",
+        "README.md:101-153"
+      ],
+      "native_cli_reuse": ".devcontainer/agents/package.json:8"
+    },
+    "claude-code-action": {
+      "repository": "anthropics/claude-code-action",
+      "version": "v1.0.262",
+      "sha": "925afb53776cf1a2b738c6bdbed37b4d4000ef13",
+      "published_at": "2026-10-24T18:57:30Z",
+      "paths": [
+        "action.yml:34-45,57-69,104-119,170-185",
+        "docs/usage.md:205-249",
+        "action.yml:190-201, path_to_bun_executable keeps the upstream action unchanged",
+        "base-action/src/execution-file.ts:6-25, fixed SDK execution artifact",
+        "base-action/src/run-claude-sdk.ts:221-275, error result and structured-output checks"
+      ],
+      "excluded_reference": "v1.0.269/61a9c274 is newer than cutoff"
+    },
+    "github-script": {
+      "repository": "actions/github-script",
+      "sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "committed_at": "2026-04-09T22:39:54Z",
+      "paths": [
+        "README.md, Using a separate script; Using Octokit to call the REST API"
+      ]
+    },
+    "checkout": {
+      "repository": "actions/checkout",
+      "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "committed_at": "2026-07-17T18:45:11Z",
+      "paths": [
+        "action.yml, ref and persist-credentials inputs"
+      ]
+    },
+    "setup-node": {
+      "repository": "actions/setup-node",
+      "sha": "949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "committed_at": "2026-10-08T02:43:26Z",
+      "paths": [
+        "action.yml, node-version and package-manager-cache inputs"
+      ]
+    },
+    "setup-uv": {
+      "repository": "astral-sh/setup-uv",
+      "version": "v10.3.2",
+      "sha": "07a047e608db84b3d8c06cd9a7c7dcc9c355c18e",
+      "published_at": "2026-10-22T08:47:11Z",
+      "paths": [
+        "action.yml, enable-cache input"
+      ]
+    },
+    "ruleset-recipes": {
+      "repository": "github/ruleset-recipes",
+      "sha": "82adf8954a5cafb9722c18c421b9834c24ec0cd0",
+      "committed_at": "2025-02-12T18:06:43Z",
+      "paths": [
+        "branch-rulesets/PRs and commits.json",
+        "branch-rulesets/were-just-normal-repositories.json"
+      ]
+    },
+    "danger": {
+      "repository": "danger/danger-js",
+      "version": "14.1.0",
+      "sha": "72540533c4f99bad772ba303be0eb4af6eddbdc4",
+      "reuse": ".devcontainer/agents/package.json:11",
+      "paths": [
+        "source/ci_source/providers/GitHubActions.ts:219-267, constructor/useEventDSL/pullRequestID/repoSlug",
+        "source/platforms/github/GitHubUtils.ts, fileContents"
+      ]
+    },
+    "landing-standard": {
+      "repository": "google/eng-practices",
+      "sha": "3bb3ec25b3b0199f4940b1aa75f0ac5c5753301c",
+      "committed_at": "2024-09-19T05:27:51Z",
+      "paths": [
+        "review/reviewer/standard.md:31-34,72,88-90",
+        "review/developer/small-cls.md:175"
+      ]
+    },
+    "parity-installer": {
+      "sha": "c5ffd943fcfbb7fd861ef514e0c5ee7361b1d14b",
+      "paths": [
+        "deploy/wsl/lane-runtimes/parity.py:288-338"
+      ],
+      "sha256": "f307fc13d142830cdf2aa808c5e2fa4c3dc72120896e6b0f37666940bef20827",
+      "reuse": "existing reviewed project installer requested by the lead; vendored module patched in this PR for the P10 quality rows"
+    },
+    "bun": {
+      "repository": "oven-sh/bun",
+      "version": "bun-v1.4.4",
+      "published_at": "2026-10-22T10:11:32Z",
+      "asset": "bun-linux-x64.zip",
+      "sha256": "bf8ccbfb2b0b80159e0f9a6d15c55317add8077534dbc6130a3edb52fccb395c",
+      "authority": "The already-pinned claude-code-action action.yml:199 selects this exact runtime; release qualifies before the new-pin cutoff. Official path_to_bun_executable input accepts the API-downloaded executable."
+    }
+  },
+  "transitive_actions": [
+    {
+      "repository": "actions/setup-node",
+      "sha": "53b83947a5a98c8d113130e565377fae1a50d02f",
+      "committed_at": "2026-03-02T21:21:49Z",
+      "used_by": "codex-action/action.yml:145"
+    },
+    {
+      "repository": "oven-sh/setup-bun",
+      "sha": "0c5077e51419868618aeaa5fe8019c62421857d6",
+      "committed_at": "2026-03-14T09:37:27Z",
+      "used_by": "claude-code-action/action.yml:195"
+    }
+  ],
+  "patterns": {
+    "gate.cjs": [
+      "actions/github-script separate-script/Octokit pattern",
+      "GitHub workflow_run privilege separation and exact commit-status REST target",
+      "owner key-routing policy and landing-standard ruling, 2026-11-09",
+      "Claude Agent SDK structured output transport: native StructuredOutput tool, official docs read 2026-11-09"
+    ],
+    "bundles/api-only/index.mjs": [
+      "Main config/dsh/hard-lines/hard-lines.mjs monotonic ctx.tools.guard pattern",
+      "dsh-github src/ci/tool.ts:42-67 tool names and arguments",
+      "PerryLink/dsh-github@2fc0009c:src/ci/tool.ts:123-126 and src/state.ts parsePrRef: exact owner/repo#number is the upstream repository-bearing PR reference; no replacement parser."
+    ],
+    "verdict.schema.json": [
+      "Main .github/review/rubric.md upstream output schema"
+    ],
+    "parity-entry.py": [
+      "c5ffd943fcfbb7fd861ef514e0c5ee7361b1d14b:deploy/wsl/lane-runtimes/parity.py:274-329, unchanged _quality_missing/ensure_workspace/_native helpers; adapter binds one CI profile, not host runtime homes."
+    ],
+    "headless-services.cordis.yml": [
+      "deepseek-harness@66491b05:packages/bundle/headless/README.md:53-71, restore the credentials service in an empty isolated CI home",
+      "PerryLink/dsh-github@2fc0009c:src/commands.ts registerReviewCommand; deepseek-harness@66491b05:apps/cli/README.md:40-48 disabled entry metadata avoids two registrations of the interactive /review command"
+    ],
+    "ci.yml": [
+      "Main .devcontainer/Dockerfile:124-138 tool versions and SHA256 values; GitHub CLI gh release download documented --repo/--pattern/--output API transport, read 2026-11-09. Only the automatic read-only GitHub job token is used, never repository review secrets."
+    ]
+  },
+  "official_documents": [
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run",
+    "https://docs.github.com/en/rest/commits/statuses#create-a-commit-status",
+    "https://docs.github.com/en/rest/commits/commits#list-pull-requests-associated-with-a-commit",
+    "https://docs.github.com/en/rest/issues/issues",
+    "https://docs.github.com/en/rest/issues/events",
+    "https://docs.github.com/en/rest/repos/rules",
+    "https://docs.github.com/en/rest/actions/permissions",
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax#inputs",
+    "https://learn.chatgpt.com/docs/github-action",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://pnpm.io/settings",
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request",
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables",
+    "https://code.claude.com/docs/en/agent-sdk/structured-outputs#recognize-the-structuredoutput-tool-call",
+    "https://cli.github.com/manual/gh_release_download",
+    "https://git-scm.com/docs/git-merge-tree",
+    "https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#list-commit-statuses-for-a-reference"
+  ],
+  "vendored_scripts": {
+    "action-patch.mjs": "a897b80da6c1a42f32261e54a92e2bd1163dd075e0574edc4c336b96ceb3e797",
+    "action-post.mjs": "f8df0a576aefe1ff68e2c45caae276bf06ecae6eeba5648346a7ff0cf0981875"
+  }
+}

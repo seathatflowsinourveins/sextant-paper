@@ -1,0 +1,9 @@
+# Public hosted service: rolling backend, not an immutable server pin.
+- insert:
+    - id: mcp-deepwiki
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: deepwiki
+        transport: streamable-http
+        url: https://mcp.deepwiki.com/mcp
+        failOnStartupError: true

@@ -1,0 +1,30 @@
+{
+  "name": "sextant-dsh-research",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {"dsh": "0.2.2-rc.1"},
+  "devDependencies": {
+    "@deepseek-harness-tui/dsh-tui": "0.19.0",
+    "@deepseek-ai/dsh-hooks-claude-code": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-hook-protocol": "0.2.2-rc.1",
+    "brooks-lint": "1.9.1",
+    "dsh-reference-checker": "1.1.1",
+    "billion-context": "0.1.212"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": [
+        "./mcp/context7.cordis.yml",
+        "./mcp/exa.cordis.yml",
+        "./mcp/deepwiki.cordis.yml",
+        "./mcp/paper-search.cordis.yml",
+        "./session-search.cordis.yml",
+        "./native-auth.cordis.yml",
+        "./bili-ports.cordis.yml",
+        "./mcp/source-tools.cordis.yml",
+        "./native-parallel.cordis.yml",
+        "./mcp/max-effort.cordis.yml"
+      ]
+    }
+  }
+}

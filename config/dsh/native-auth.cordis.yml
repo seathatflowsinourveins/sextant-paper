@@ -1,0 +1,3 @@
+# Native Claude/Codex backends own their sign-ins. Do not mount pi-ai OAuth.
+- id: dsh-tui-auth
+  disabled: true

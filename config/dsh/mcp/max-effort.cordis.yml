@@ -1,0 +1,24 @@
+# Every dsh profile at max, composed last in the MCP and research bundles (ADR-0030, Rule 2).
+# Keep the shared patch inside the MCP package: dsh validates package-relative paths through its link.
+# A patch replaces a row's whole config (dsh-tui 0.19.0
+# cordis.patch.yml header), so each row restates every key it keeps.
+# llm-deepseek: dsh-tui 0.19.0's bundle pins thinking at max, but billion-context 0.1.212's dsh.bundle.patch.yml:46-50,
+# composed after it, replaces that row with its retryPolicy alone (dsh --profile dsh-tui --dump-config, 2026-11-08).
+# This row carries dsh-tui's adapter keys and billion-context's retries together.
+- id: llm-deepseek
+  config:
+    apiKeyEnv: 'DEEPSEEK_API_KEY'
+    baseURL: !!js process.env.DEEPSEEK_BASE_URL
+    thinking: enabled
+    reasoningEffort: max
+    retryPolicy:
+      mode: normal
+      retryableCodes: [EMPTY_RESPONSE, RATE_LIMIT, SERVER, TIMEOUT, TRANSPORT, MALFORMED_RESPONSE]
+# agent-default-model: dsh 0.2.2-rc.1 @deepseek-ai/dsh-agent-default-model README "Configure the default": provider,
+# model and reasoningEffort are live Config fields for freshly created agents; without reasoningEffort the composed
+# row runs at the harness default, high. Provider and model are restated as composed.
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    reasoningEffort: max
