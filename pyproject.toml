@@ -4,11 +4,30 @@ version = "0.1.0"
 description = "Paper loop and TradingView display with a cited ci-only harness"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "alpaca-py==0.44.0",
+    "exchange-calendars==4.13.2",
+    "nautilus-trader[visualization]==2.0.0rc8",
+    "pandas==3.1.0",
+    "pyarrow==26.0.0",
     "pyyaml==6.0.3",
+    "requests==2.34.2",
 ]
 
+[tool.uv.sources]
+requests = { git = "https://github.com/psf/requests", rev = "6e83187b8feb273ed4c6cdab5efd8d54901dfab3" }
+
+[project.optional-dependencies]
+tradingview = ["mcp==2.3.0", "httpx2==2.16.0", "jsonschema==4.26.0", "exchange-calendars==4.13.2"]
+
 [dependency-groups]
-dev = ["pytest==9.2.0", "pytest-xdist==3.8.0", "ruff==0.17.4", "zizmor==1.32.0"]
+dev = ["pytest==9.2.0", "pytest-xdist==3.8.0", "ruff==0.17.4", "zizmor==1.32.0", "mcp==2.3.0", "httpx2==2.16.0", "jsonschema==4.26.0", "exchange-calendars==4.13.2"]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "sextant"
 
 [tool.ruff]
 line-length = 100

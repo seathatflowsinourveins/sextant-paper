@@ -1,0 +1,37 @@
+{
+  "schema": "tv-account.registry/2",
+  "rows": [
+    {
+      "name": "account_calls_per_utc_day",
+      "unit": "calls/UTC day",
+      "value": 182,
+      "source": "LEAD-1614-tv-account-values.md sha256 7e92258392599bd6b3e6295c58327de88199150c503c8cf113561450ccbddec0; https://www.tradingview.com/mcp/docs (read 2026-11-11), ~100 requests/min/user, no published daily limit or spacing; REQUEST-NEED.md sha256 f4d025e77dfc5fb9aa7385a17bda3dc59ea8b0447e1f5e094c121dfb4a5d1409; 2026-11-11 19:00-20:00 New York attended session ONLY, UTC day 2026-11-12: 12 runs x 14 requests + 14 per process; timer stays disabled; tomorrow requires a new reviewed value from measured counts; not an unattended full-day budget",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-11"
+    },
+    {
+      "name": "account_state_path",
+      "unit": "path",
+      "value": "~/.local/state/sextant/tradingview/account.json",
+      "source": "LEAD-0903 item 2, 2026-11-11: one canonical durable account state",
+      "calibration_state": "FIXED",
+      "last_change": "2026-11-11"
+    },
+    {
+      "name": "account_request_min_interval_s",
+      "unit": "seconds/request",
+      "value": 6,
+      "source": "LEAD-1614-tv-account-values.md sha256 7e92258392599bd6b3e6295c58327de88199150c503c8cf113561450ccbddec0; https://www.tradingview.com/mcp/docs (read 2026-11-11), ~100 requests/min/user, no published daily limit or spacing; REQUEST-NEED.md sha256 f4d025e77dfc5fb9aa7385a17bda3dc59ea8b0447e1f5e094c121dfb4a5d1409; UNCALIBRATED starting choice within sourced bounds: above failed 1.5s, below 150/14 seconds; 3 x 6 = 18s leaves 12s under the 30s timeout; 10 requests/min; worst run 84s",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-11"
+    },
+    {
+      "name": "account_request_timeout_s",
+      "unit": "seconds",
+      "value": 30,
+      "source": "LEAD-1614-tv-account-values.md sha256 7e92258392599bd6b3e6295c58327de88199150c503c8cf113561450ccbddec0; https://www.tradingview.com/mcp/docs (read 2026-11-11), ~100 requests/min/user, no published daily limit or spacing; REQUEST-NEED.md sha256 f4d025e77dfc5fb9aa7385a17bda3dc59ea8b0447e1f5e094c121dfb4a5d1409; USE AS IS: modelcontextprotocol/python-sdk@v2.3.0 2118f14f8a19bc158d8a1cf90af58d85d187f849 src/mcp/shared/_httpx_utils.py:13 MCP_DEFAULT_TIMEOUT = 30.0; sourced general timeout value applied to our caller timeout, not an SDK per-request default",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-11"
+    }
+  ]
+}

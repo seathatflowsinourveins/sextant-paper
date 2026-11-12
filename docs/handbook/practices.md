@@ -9,3 +9,5 @@ Each tunable has a source and calibration state. Missing authority stays unavail
 Land through squash auto-merge on ci. Run tests before claiming success, including a failing witness before new behavior. Use fixture environments for harness subprocesses rather than inheriting service wrappers. Source: the template's `tests/repo/test_pr_check.py` and [delivery lifecycle](lifecycle.md).
 
 A cap has one source. The source-line placeholder is read only from `SOURCE_LINE_CAP` in tests/repo/test_budgets.py; it changes after the measured import closure, not from an invented estimate. Remove unused automation and its obsolete proofs in the same change; the [adaptation lesson](lifecycle.md#adaptation-lesson-2026-11-11) explains the retained profile snapshot.
+
+A source move freezes origin/main once, regenerates the approved import closure at that SHA and compares every copied file against independent `git show` bytes. Preserve the comparison table. Keep source pins and lock records; resolve destination lint/type differences in configuration so byte identity remains reviewable (the paper import baseline is recorded in [the evidence](../import-evidence.md)).

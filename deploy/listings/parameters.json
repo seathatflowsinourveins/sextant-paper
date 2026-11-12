@@ -1,0 +1,17 @@
+{
+  "schema": "sextant.tv-listings.parameters/1",
+  "rows": {
+    "on_calendar": {
+      "value": "Mon..Fri *-*-* 03:00:00 America/New_York",
+      "unit": "systemd OnCalendar expression",
+      "status": "UNCALIBRATED",
+      "source": "deploy/calibration/parameters.json on_calendar (one hour before PRE at 04:00 ET, ADR-0002), reused. NASDAQ Trader symboldirdefs, read 2026-11-11: the files are 'updated periodically through-out each day'; observed File Creation Time 1110202621:31 on 2026-11-11, one sample. Not a measured freshness guarantee."
+    },
+    "fetch_timeout_s": {
+      "value": 60,
+      "unit": "seconds per HTTPS request (urllib.request.urlopen timeout)",
+      "status": "UNCALIBRATED",
+      "source": "The existing per-call read timeout in src/sextant/tradingview/sync.py (read_timeout_seconds=60.0), reused. Measured 2026-11-11: each file fetched in under 1 s (348,264 and 543,254 bytes)."
+    }
+  }
+}
