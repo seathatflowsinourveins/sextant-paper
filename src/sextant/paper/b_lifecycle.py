@@ -124,6 +124,7 @@ class BLifecycleConfig(StrategyConfig):
         width_rows: Mapping[str, Decimal] | None = None,
         trail_reduce_only: bool = True,
         client_id: str | None = None,
+        subscribe_entry_bars: bool = True,
         **engine: object,
     ) -> None:
         unknown = sorted(set(engine) - ENGINE_FIELDS)
@@ -180,6 +181,9 @@ class BLifecycleConfig(StrategyConfig):
         if client_id is not None and (not isinstance(client_id, str) or not client_id):
             raise ValueError("client_id must be a non-empty string or None")
         self.client_id = client_id
+        if not isinstance(subscribe_entry_bars, bool):
+            raise ValueError("subscribe_entry_bars must be True or False")
+        self.subscribe_entry_bars = subscribe_entry_bars
 
 
 @dataclass(slots=True)
@@ -266,7 +270,8 @@ class BLifecycle(Strategy):
                 continue
             segment = self.consumer.reader.segment
             book.entry = EntryState(iid, self._p, segment.name, start_ns=segment.start_ns)
-            self.subscribe_bars(book.entry.bar_type)
+            if self._config.subscribe_entry_bars:
+                self.subscribe_bars(book.entry.bar_type)
         rows = self.width_rows
         for iid, book in self.books.items():
             if rows is None:
@@ -275,7 +280,9 @@ class BLifecycle(Strategy):
             book.width_bar = BarType.from_str(f"{iid}-{minutes}-MINUTE-LAST-EXTERNAL")
             book.oracle = AverageTrueRange(int(rows["trail_atr_period"]))
             self.register_indicator_for_bars(book.width_bar, book.oracle)
-            if book.entry is None or book.entry.bar_type != book.width_bar:
+            if not self._config.subscribe_entry_bars or (
+                book.entry is None or book.entry.bar_type != book.width_bar
+            ):
                 self.subscribe_bars(book.width_bar)
         if self.missing:
             self._record(kind="entry_refused", ts=now, missing=self.missing)
@@ -394,7 +401,8 @@ class BLifecycle(Strategy):
         allowed = self.candidate(book, now)
         if book.entry is None or self.baseline is None or self.exit is None:
             return
-        book.entry.on_trade(trade, now=now)
+        if not book.entry.on_trade(trade, now=now):
+            return
         book.trades.append((trade.ts_event, trade.price.as_decimal()))  # R_w (exits/engine.py)
         start = trade.ts_event - int(self.exit.prearm_range_window_s * NS)
         while book.trades[0][0] < start:
