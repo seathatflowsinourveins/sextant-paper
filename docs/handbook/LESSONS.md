@@ -94,9 +94,16 @@ missing authority refuses ordinary entries without becoming a new startup gate f
 protection or the separately attended test intent. Loading buffer inputs never enables
 gain-lock or exit chase.
 
+Decimal conversion and cent-rounding can raise `decimal.InvalidOperation` rather
+than `ValueError`. Optional dependency admission must catch that exact validator
+exception too, leaving ordinary entries refused while startup remains admitted.
+
 Evidence: LEAD-2259, 2026-11-11; the two G3 normal-loader assertions failed before
 the fix. `custody/test_b_node_entries.py` now carries those inputs from the loader
 through composition to the native entry replay, plus unavailable-row startup proofs.
 Build on the existing validators at sextant-paper
 `438c90a409620132c38a6a864f0a53cfb315ddc9`,
 `src/sextant/paper/b_entry_dependencies.py:57-84`.
+The G3 exact-head review at `52fb96c2f2aa1285d4ffc7f5bac196230f31c497`
+reproduced this trap for malformed exit rows; fix-round witnesses also cover the
+sizing-fee rounding trap and both native startup modes.

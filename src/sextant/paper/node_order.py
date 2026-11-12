@@ -43,7 +43,7 @@ import time
 from collections.abc import Callable, Mapping
 from contextlib import ExitStack, suppress
 from dataclasses import dataclass, field, replace
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -218,14 +218,14 @@ def load_rows(raw: argparse.Namespace) -> Rows:
             "off: round_trip_cost and exit chase UNAVAILABLE; "
             "B ExitParams loaded for entry buffer only"
         )
-    except (ValueError, KeyError, TypeError) as error:
+    except (ValueError, KeyError, TypeError, InvalidOperation) as error:
         steps["gain_lock"] = f"off: entry buffer unavailable: {error}; exit chase remains off"
     steps["reentry"] = f"off: no re-entry part on main; unavailable {_unavailable(reentry_rows)}"
     commission = [row for row in node_rows if row["name"].startswith("paper_us_equity_")]
     commission_rate = None
     try:
         commission_rate = sizing_commission_rate(commission)
-    except (ValueError, KeyError, TypeError) as error:
+    except (ValueError, KeyError, TypeError, InvalidOperation) as error:
         steps["entry"] += f"; commission_rate unavailable: {error}"
     poll = int(b.reconcile_interval_s * 1_000_000_000)
     return Rows(
