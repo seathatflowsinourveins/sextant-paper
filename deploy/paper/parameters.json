@@ -1,0 +1,40 @@
+{
+  "schema": "sextant.paper-supervision.parameters/1",
+  "rows": {
+    "Restart": {
+      "value": "on-failure",
+      "unit": "systemd restart policy",
+      "source": "https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html Restart= (read 2026-11-11): recommended failure recovery; reuse deploy/tradingview/sextant-tradingview-sync.service at Sextant@33cdee7b65d53c93ab106b7b3196fc790b14a5a8:14.",
+      "status": "UNCALIBRATED",
+      "read_date": "2026-11-11"
+    },
+    "RestartSec": {
+      "value": "100ms",
+      "unit": "systemd duration",
+      "source": "https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html (read 2026-11-11), DefaultRestartSec= default, explicitly reused.",
+      "status": "UNCALIBRATED",
+      "read_date": "2026-11-11"
+    },
+    "StartLimitIntervalSec": {
+      "value": "10s",
+      "unit": "systemd duration",
+      "source": "https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html (read 2026-11-11), DefaultStartLimitIntervalSec= default, explicitly reused.",
+      "status": "UNCALIBRATED",
+      "read_date": "2026-11-11"
+    },
+    "StartLimitBurst": {
+      "value": 5,
+      "unit": "starts per interval",
+      "source": "https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html (read 2026-11-11), DefaultStartLimitBurst= default, explicitly reused.",
+      "status": "UNCALIBRATED",
+      "read_date": "2026-11-11"
+    },
+    "RestartPreventExitStatus": {
+      "value": 2,
+      "unit": "process exit status",
+      "source": "LEAD-1957 seat P4 refusal status; Sextant@33cdee7b65d53c93ab106b7b3196fc790b14a5a8 src/sextant/paper/node_order.py:783-787,932-943; https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html RestartPreventExitStatus= (read 2026-11-11).",
+      "status": "UNCALIBRATED",
+      "read_date": "2026-11-11"
+    }
+  }
+}

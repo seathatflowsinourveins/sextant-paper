@@ -31,3 +31,17 @@ Evidence: the lead's 2026-11-11 state record at 12:17–12:24 withdrew a request
 After sending Enter to the old writer's tab, run no command whose text names its module; check the lease by its lock name only.
 
 Evidence: the lead's 2026-11-11 state record at 17:59–18:00: a wait command containing the module name matched the single-writer guard and refused the restart. The corrected check used the lock name.
+
+## 6. A restart repeats admission
+
+Supervision retries the same command; it never inherits admission from the previous
+process. Prove consecutive starts against different incumbent leases using the real
+wrapper/CLI and fixture credentials. Guard exit 2 stays stopped; a non-flat restart
+refuses, so automatic restart does not establish continuous protection.
+
+Evidence: Sextant@`9f3464456da25945a0e4a4802dc119132692f57f`, the reviewed stage 2
+unit and `test_stage2_repeated_wrapper_starts_recheck_both_incumbent_leases`, ported
+to `tests/proofs/test_b_paper_units.py`; [systemd.service(5)](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html)
+`Restart=`/`RestartPreventExitStatus=`, read 2026-11-11. The
+[operator instructions](../../deploy/paper/README.md#unattended-stage-2-protection)
+retain the admission boundary.

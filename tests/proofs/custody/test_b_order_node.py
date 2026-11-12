@@ -610,23 +610,48 @@ def test_no_expected_account_refuses_before_any_lease(tmp_path, monkeypatch) -> 
     assert not (tmp_path / "locks").exists() and not (tmp_path / "leases").exists()
 
 
-def test_a_holding_outside_the_claims_while_running_is_paged_once_per_name(tmp_path, capfd) -> None:
+@pytest.mark.parametrize("slow_start", [False, True])
+def test_a_holding_outside_the_claims_while_running_is_paged_once_per_name(
+    tmp_path, capfd, monkeypatch, slow_start
+) -> None:
+    if slow_start:
+        parse = node_order.parse
+
+        def delayed_parse(parts):
+            # Fault injection: startup outlasts the old half-second fixture timer.
+            threading.Event().wait(1)
+            return parse(parts)
+
+        monkeypatch.setattr(node_order, "parse", delayed_parse)
     rows = json.loads((ROOT / "lanes/paper/b-parameters.json").read_text())
     for row in rows:  # a one-second poll for the proof; the committed row is the authority
         row["value"] = "1" if row["name"] == "reconcile_interval_s" else row["value"]
     (tmp_path / "b.json").write_text(json.dumps(rows))
     venue = AccountVenue()
-    later = threading.Timer(0.5, lambda: [_holding(venue, s, "5") for s in ("OUTA", "OUTB")])
-    try:
-        later.start()
-        body, code, _ = start(tmp_path, venue, b=tmp_path / "b.json", duration="4")
-    finally:
-        later.cancel()
-        later.join()
+    outside = node_order.GatedBLifecycle._outside
+    polls = 0
+
+    async def outside_after_start(strategy):
+        nonlocal polls
+        assert strategy.gate.open  # holdings belong to runtime, never reconciliation
+        if polls == 0:
+            for symbol in ("OUTA", "OUTB"):
+                _holding(venue, symbol, "5")
+        await outside(strategy)  # real native timer, gateway read and pager on every poll
+        polls += 1
+        if polls >= 3:
+            # NT d53849b python/nautilus_trader/trading/__init__.pyi:525: native shutdown.
+            strategy.shutdown_system("proof observed three outside-holdings polls")
+
+    monkeypatch.setattr(node_order.GatedBLifecycle, "_outside", outside_after_start)
+    # A failure bound only; successful completion follows the observed polls, not elapsed time.
+    body, code, _ = start(tmp_path, venue, b=tmp_path / "b.json", duration="30")
     logging_sync_to_disk()
     err = capfd.readouterr().err.splitlines()
     lines = [line for line in err if "holding_outside_claims_running" in line]
     assert (code, body["phase"]) == (0, "stopped"), body
+    assert body["gate"]["withheld_holdings"] == 0, body
+    assert polls >= 3, body
     assert body["outside_holdings_paged"] == 2
     assert sorted(line.rsplit(" ", 1)[1] for line in lines) == ["OUTA", "OUTB"]  # once per name
     assert not writes(venue)
