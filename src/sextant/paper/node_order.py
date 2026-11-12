@@ -222,8 +222,18 @@ def read_universe(path: Path) -> tuple[tuple[InstrumentId, ...], str]:
     return tuple(InstrumentId(Symbol(name), VENUE) for name in names), source
 
 
+def _absolute_directory(value: str) -> Path:
+    """argparse type callable: CPython v3.13.18 Lib/argparse.py:2571-2584."""
+    path = Path(value)
+    if not value or not path.is_absolute():
+        raise argparse.ArgumentTypeError("must be a non-empty absolute directory path")
+    return path
+
+
 def parse(argv: list[str] | None = None) -> OrderArguments:
-    parser = argparse.ArgumentParser(prog="python -m sextant.paper.node_order", allow_abbrev=False)
+    parser = argparse.ArgumentParser(
+        prog="python -m sextant.paper.node_order", allow_abbrev=False, exit_on_error=False
+    )
     parser.add_argument("--attended-test-entry", metavar="INSTRUMENT")
     required = parser.add_argument_group("required")
     for flag, kind in (
@@ -235,20 +245,47 @@ def parse(argv: list[str] | None = None) -> OrderArguments:
         ("--reentry-parameters", Path),
         ("--node-parameters", Path),
         ("--custody-parameters", Path),
-        ("--receipt-dir", Path),
+        ("--receipt-dir", _absolute_directory),
         ("--duration-s", int),
         ("--api-key-env", str),
         ("--api-secret-env", str),
         ("--paper-slot", int),
-        ("--writer-lease-root", Path),
-        ("--stream-lease-root", Path),
+        ("--writer-lease-root", _absolute_directory),
+        ("--stream-lease-root", _absolute_directory),
         ("--existing-streams", int),
         ("--lease-source", str),
     ):
         required.add_argument(flag, type=kind, required=True)
     for flag in ("--ranking-universe-artifact", "--ranking-baseline-dir", "--ranking-inputs-dir"):
         parser.add_argument(flag, type=Path)
-    raw = parser.parse_args(argv)
+    try:
+        raw = parser.parse_args(argv)
+    except argparse.ArgumentError as error:
+        directories = {"--receipt-dir", "--writer-lease-root", "--stream-lease-root"}
+        if error.argument_name in directories:
+            reason = error.argument_name.removeprefix("--").replace("-", "_")
+            # Recover only a valid destination, irrespective of argument order. Use
+            # argparse's own parser again; no argv scanner or admission is involved.
+            destination = argparse.ArgumentParser(
+                add_help=False, allow_abbrev=False, exit_on_error=False
+            )
+            destination.add_argument("--receipt-dir", type=_absolute_directory)
+            try:
+                receipt, _ = destination.parse_known_args(argv)
+            except argparse.ArgumentError:
+                receipt = argparse.Namespace(receipt_dir=None)
+            if receipt.receipt_dir is not None:
+                write_atomic(
+                    receipt.receipt_dir / RECEIPT,
+                    {
+                        "schema": "sextant.paper-order-node.receipt/1",
+                        "phase": "refused",
+                        "reason": reason,
+                        "detail": str(error),
+                    },
+                )
+            parser.error(f"{reason}: {error}")
+        parser.error(str(error))
     if raw.paper_slot != 2:  # slot 1 is the owner's account, slot 3 is revoked (AGENTS.md)
         raise OrderModeRefused("paper_slot", f"only paper slot 2, not {raw.paper_slot}")
     if raw.duration_s <= 0:
