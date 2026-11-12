@@ -1,0 +1,26 @@
+{
+  "schema": "sextant.ranking-node.parameters/1",
+  "rows": {
+    "page_window_s": {
+      "value": 14400,
+      "unit": "seconds between two pages for one failing stage",
+      "status": "UNCALIBRATED",
+      "source": "Prometheus Alertmanager configuration, https://prometheus.io/docs/alerting/latest/configuration/, read 2026-11-11: 'How long to wait before repeating the last notification' [ repeat_interval: <duration> | default = 4h ]. The ranking Actor's pager repeats one stage's page at most once per this window (node_actor.py _fault).",
+      "last_change": "2026-11-11"
+    },
+    "receipt_interval_s": {
+      "value": 60,
+      "unit": "seconds between two capacity receipt writes",
+      "status": "UNCALIBRATED",
+      "source": "The existing deploy/monitor/systemd/parameters.json row monitor_bridge_period_seconds = 60 (OpenTelemetry Periodic exporting MetricReader, OTEL_METRIC_EXPORT_INTERVAL default 60000 ms), which already governs how often a measurement is exported to the monitor; the capacity receipt is that measurement's export.",
+      "last_change": "2026-11-11"
+    },
+    "status_snapshot_window_s": {
+      "value": null,
+      "unit": "seconds after subscribing in which a name's first status is counted as a snapshot",
+      "status": "UNAVAILABLE",
+      "source": "No source found: the vendor's stream page does not state whether or when current status is sent on subscribe (LEAD-0020 1). There is no flag (lead ruling 04:2x): the recorder stays off.",
+      "last_change": "2026-11-11"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Sextant TradingView display sync at the display open
+
+[Timer]
+# UNCALIBRATED start, authority: lanes/tradingview/j5-cadence.params.json display_start_minute_et (240).
+OnCalendar=Mon..Fri *-*-* 04:00:00 America/New_York
+Persistent=true
+Unit=sextant-tradingview-sync.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Sextant TradingView display sync loop (NS movers and NS focus, one display session)
+Documentation=https://github.com/seathatflowsinourveins/sextant/blob/main/deploy/tradingview/README.md
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sextant
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin PYTHONUNBUFFERED=1
+# The owner's stored sign-in, loaded by the loop from the encrypted store; no browser, no value here.
+# A crash restarts; a latched run or a missing sign-in is refused again on restart until the
+# start limit marks the unit failed. The loop exits 0 at the display close, never restarted.
+ExecStart=%h/.local/bin/uv run --frozen python -m sextant.tradingview --loop --keep-login --research-dir %h/sextant-data/tradingview-prestage/unit
+Restart=on-failure
+MemoryMax=@SYNC_MEMORY_MAX@
+MemorySwapMax=0

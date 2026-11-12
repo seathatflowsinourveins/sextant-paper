@@ -1,0 +1,19 @@
+[Unit]
+Description=Sextant TradingView display unit producer (PRE, RTH and POST)
+Documentation=https://github.com/seathatflowsinourveins/sextant/blob/main/deploy/tradingview/README.md
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sextant
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin PYTHONUNBUFFERED=1
+# Slot 2 paper data credentials, injected for this command only; REST bars, no stream, no order.
+# The display bounds come from the sourced lanes/tradingview/display-bounds.params.json (the
+# module's default); the memory limit has no measurement yet, so install.sh takes it as an argument.
+ExecStart=/usr/bin/bash %h/sextant/scripts/with-keys.sh --strict -k ALPACA_PAPER_2_API_KEY -k ALPACA_PAPER_2_SECRET_KEY -- %h/.local/bin/uv run --frozen python -m sextant.tradingview.prestage --research-dir %h/sextant-data/tradingview-prestage/unit --nasdaq-listed %h/sextant-data/tradingview-prestage/nasdaqlisted.txt --other-listed %h/sextant-data/tradingview-prestage/otherlisted.txt --symbol-map %h/sextant-data/tradingview-prestage/symbol_map.json --ranked-view-dir %h/sextant-data/tradingview-prestage/ranked-view
+Restart=on-failure
+MemoryMax=@PRODUCER_MEMORY_MAX@
+MemorySwapMax=0
+
+[Install]
+WantedBy=default.target
