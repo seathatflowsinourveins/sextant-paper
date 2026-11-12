@@ -310,7 +310,9 @@ class AlpacaExecutionClient(ExecutionClient):
         self._modify_owed: dict[str, int] = {}  # the same debt for replace refusals
         self._modify_seen: set[str] = set()
         self._held: dict[str, list[dict]] = {}  # successor fills awaiting lineage
+        self._releasing: set[str] = set()  # venue ids whose held fills are being forwarded
         self._forwarded: set[tuple[str, str]] = set()  # (venue id, execution id)
+        self.duplicate_executions = 0
         # No invented commission: caller supplies an evidenced Money per execution.
         self.commission_for_fill: Callable[[dict], Money] | None = None
         self.commission_refusal: str | None = None
@@ -997,6 +999,11 @@ class AlpacaExecutionClient(ExecutionClient):
                     reports.append(report)
             except Exception as exc:
                 failures.append((row, exc))
+        failures += [
+            (update, ValueError("execution held for its unconfirmed lineage"))
+            for held in self._held.values()
+            for update in held
+        ]
         if failures:
             self.failures.extend(failures)
             raise IncompleteCoverage(reports, failures)
@@ -1036,7 +1043,7 @@ class AlpacaExecutionClient(ExecutionClient):
         if failures:
             self.coverage_complete = False
             raise IncompleteCoverage(reports, failures)
-        self.coverage_complete = self._orders_complete
+        self.coverage_complete = self._orders_complete and not self._held
         return reports
 
     async def _list_fill_activities(self, params):
@@ -1116,15 +1123,21 @@ class AlpacaExecutionClient(ExecutionClient):
             raise IncompleteCoverage([], [(update, exc)]) from exc
 
     async def _release(self, venue_id: str) -> None:
-        """Forward, in order, the fills held for this unconfirmed lineage."""
+        """Forward, in order, the fills held for this unconfirmed lineage. One that still
+        fails stays held with the rest, so coverage stays incomplete."""
+        if venue_id in self._releasing:
+            return
+        self._releasing.add(venue_id)
         held = self._held.pop(venue_id, [])  # A replay's own release finds none.
         try:
             while held:
                 await self._process_update(held[0])
                 held.pop(0)  # Once processed.
-        except Exception:
+        except Exception as exc:
+            self.failures.append((held[0], exc))
             self.coverage_complete = False
         finally:
+            self._releasing.discard(venue_id)
             if held:  # Kept, in order, for the next one.
                 self._held[venue_id] = held + self._held.get(venue_id, [])
 
@@ -1193,8 +1206,9 @@ class AlpacaExecutionClient(ExecutionClient):
                     [], [(update, ValueError("fill commission evidence unavailable"))]
                 )
             execution = (row["id"], str(data.get("execution_id")))
-            if execution in self._forwarded:
-                return  # One forward per execution.
+            if execution in self._forwarded:  # One forward per execution.
+                self.duplicate_executions += 1
+                return
             report = fill_report(
                 update,
                 account_id=self.account_id,
