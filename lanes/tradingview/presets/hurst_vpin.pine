@@ -1,0 +1,109 @@
+//@version=6
+// SPDX-License-Identifier: LGPL-3.0
+// R/S algorithm adapted from Nautech Systems Pty Ltd. (C) 2015-2026, LGPL-3.0:
+// nautechsystems/nautilus_trader@55c0e82053142bce3a5cba4de4221d3929c2d3bc (v2.0.0rc7)
+// crates/trading/src/examples/strategies/hurst_vpin_directional/{strategy,config}.rs
+// https://github.com/nautechsystems/nautilus_trader/tree/v2.0.0rc7/crates/trading/src/examples/strategies/hurst_vpin_directional
+// Mirrors the upstream rc7 example; bot parity pending its port.
+// DISPLAY ONLY: chart-bar / close-location flow PROXY, not true dollar-bar VPIN.
+// Upstream needs dollar bars plus trade aggressor buy/sell ticks and quote timing.
+// No verified Pine source provides those exact streams. No synthetic dollar-bar
+// or aggressor reconstruction is represented as equivalent here.
+// Official Pine v6 references, accessed 2026-10-23:
+// https://www.tradingview.com/pine-script-reference/v6/#fun_array.new%3Ctype%3E
+// https://www.tradingview.com/pine-script-reference/v6/#fun_math.log
+// https://www.tradingview.com/pine-script-docs/language/arrays/
+// https://www.tradingview.com/pine-script-docs/concepts/other-timeframes-and-data/#requestfootprint
+// Footprint volumes are classified lower-timeframe price action, not true
+// aggressor flow (Premium/Ultimate only); this preset does not request them.
+indicator("NS 2026-11-06 · hurst_vpin", overlay = false, precision = 3)
+
+int hurstWindow = input.int(128, "R/S return window (chart bars)", minval = 32, maxval = 512)
+int vpinWindow = input.int(50, "Proxy imbalance window", minval = 1, maxval = 512)
+float hurstEnter = input.float(0.55, "Upstream H entry threshold")
+float hurstExit = input.float(0.50, "Upstream H regime-exit threshold")
+float vpinThreshold = input.float(0.30, "Upstream VPIN threshold", minval = 0, maxval = 1)
+
+estimateHurst(array<float> returns) =>
+    array<int> lags = array.from(4, 8, 16, 32)
+    float n = 0.0
+    float sx = 0.0
+    float sy = 0.0
+    float sxx = 0.0
+    float sxy = 0.0
+    for lag in lags
+        float rsSum = 0.0
+        int validChunks = 0
+        int chunks = int(math.floor(array.size(returns) / lag))
+        if chunks > 0
+            for chunk = 0 to chunks - 1
+                int start = chunk * lag
+                float mean = 0.0
+                for j = 0 to lag - 1
+                    mean += array.get(returns, start + j) / lag
+                float running = 0.0
+                float cumMin = 0.0
+                float cumMax = 0.0
+                float varSum = 0.0
+                for j = 0 to lag - 1
+                    float deviation = array.get(returns, start + j) - mean
+                    running += deviation
+                    cumMin := math.min(cumMin, running)
+                    cumMax := math.max(cumMax, running)
+                    varSum += deviation * deviation
+                float rRange = cumMax - cumMin
+                float stdev = math.sqrt(varSum / lag)
+                if rRange > 0 and stdev > 0
+                    rsSum += rRange / stdev
+                    validChunks += 1
+        if validChunks > 0
+            float x = math.log(lag)
+            float y = math.log(rsSum / validChunks)
+            n += 1
+            sx += x
+            sy += y
+            sxx += x * x
+            sxy += x * y
+    float denominator = n * sxx - sx * sx
+    n >= 2 and denominator != 0 ? (n * sxy - sx * sy) / denominator : na
+
+var array<float> returns = array.new<float>()
+var array<float> absImbalances = array.new<float>()
+var array<float> signedImbalances = array.new<float>()
+var float lastClose = na
+var float hurst = na
+var float vpinProxy = na
+var float signedProxy = na
+if barstate.isconfirmed
+    if not na(lastClose) and lastClose > 0 and close > 0
+        array.push(returns, math.log(close / lastClose))
+        if array.size(returns) > hurstWindow
+            array.shift(returns)
+    lastClose := close
+    // A close-location volume split, explicitly a proxy. Flat bars split 50/50;
+    // missing/zero volume is skipped as upstream skips zero-total buckets.
+    if not na(volume) and volume > 0 and not na(high) and not na(low)
+        float imbalance = high > low ? (2 * close - high - low) / (high - low) : 0.0
+        imbalance := math.max(-1.0, math.min(1.0, imbalance))
+        array.push(absImbalances, math.abs(imbalance))
+        array.push(signedImbalances, imbalance)
+        if array.size(absImbalances) > vpinWindow
+            array.shift(absImbalances)
+            array.shift(signedImbalances)
+    hurst := array.size(returns) == hurstWindow ? estimateHurst(returns) : na
+    vpinProxy := array.size(absImbalances) == vpinWindow ? array.avg(absImbalances) : na
+    signedProxy := array.size(signedImbalances) == vpinWindow ? array.avg(signedImbalances) : na
+
+bool ready = not na(hurst) and not na(vpinProxy) and not na(signedProxy)
+bool proxyGate = ready and hurst >= hurstEnter and vpinProxy >= vpinThreshold
+plot(hurst, "Chart-bar R/S Hurst", color = color.aqua, linewidth = 2)
+plot(vpinProxy, "Absolute close-location imbalance PROXY", color = color.orange)
+plot(signedProxy, "Signed close-location imbalance PROXY", color = color.purple)
+hline(hurstEnter, "Upstream H entry boundary", color = color.green)
+hline(hurstExit, "Upstream H regime-exit boundary", color = color.red)
+hline(vpinThreshold, "Upstream VPIN boundary", color = color.gray)
+bgcolor(proxyGate ? color.new(signedProxy > 0 ? color.green : signedProxy < 0 ? color.red : color.gray, 88) : na)
+var table notice = table.new(position.top_right, 1, 2)
+if barstate.islast
+    table.cell(notice, 0, 0, "DISPLAY ONLY - CHART-BAR / FLOW PROXY", bgcolor = color.orange)
+    table.cell(notice, 0, 1, "Mirrors upstream rc7 example; bot parity pending its port.\nNo dollar bars, aggressor ticks, quote-entry or 3600s holding state.\nColor = proxy formula gate only, never a bot entry or position.")
