@@ -54,6 +54,76 @@ def _hold(node, path):
     return entered, release
 
 
+async def _no_write(node, task, before):
+    await asyncio.gather(task, return_exceptions=True)
+    return [r for r in node.gateway.sdk.requests[before:] if r[0] in ("DELETE", "PATCH")]
+
+
+def _admission_read_race(kind, event):
+    """An executing event while the command's own read of the order is out (await C)."""
+
+    async def run():
+        node = client()
+        row = await _sell(node)
+        before = len(node.gateway.sdk.requests)
+        entered, release = _hold(node, f"/orders/{row['id']}")
+        task = asyncio.create_task(getattr(node, f"_{kind}_order")(_cmd(kind)))
+        await asyncio.wait_for(entered.wait(), 1)
+        await node._on_trade_update(_event(event, row))
+        release.set()
+        assert not await _no_write(node, task, before)
+
+    asyncio.run(run())
+
+
+def _pacing_race(kind, event):
+    """An executing event while the admitted command waits for the pacer (await D)."""
+
+    async def run():
+        node = client()
+        row = await _sell(node)
+        current, before = node._current, len(node.gateway.sdk.requests)
+
+        async def deplete(command):
+            snapshot = await current(command)
+            node.gateway.pacer.bucket.tokens = 0
+            return snapshot
+
+        node._current = deplete
+        task = asyncio.create_task(getattr(node, f"_{kind}_order")(_cmd(kind)))
+        for _ in range(50):
+            await asyncio.sleep(0.001)
+            if node.gateway.pacer.queue:
+                break
+        assert node.gateway.pacer.queue
+        await node._on_trade_update(_event(event, row))
+        node.gateway.pacer.bucket.tokens = 1
+        node.gateway.pacer.drain()
+        assert not await _no_write(node, task, before)
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("event", EXECUTING)
+def test_an_executing_event_during_the_cancels_read_fences_it(event):
+    _admission_read_race("cancel", event)
+
+
+@pytest.mark.parametrize("event", EXECUTING)
+def test_an_executing_event_during_the_cancels_pacing_wait_fences_it(event):
+    _pacing_race("cancel", event)
+
+
+@pytest.mark.parametrize("event", EXECUTING)
+def test_an_executing_event_during_the_modifys_read_fences_it(event):
+    _admission_read_race("modify", event)
+
+
+@pytest.mark.parametrize("event", EXECUTING)
+def test_an_executing_event_during_the_modifys_pacing_wait_fences_it(event):
+    _pacing_race("modify", event)
+
+
 async def _successor(node, *, sell=True):
     """A confirmed, bound successor of a house order; returns its row."""
     if sell:
@@ -95,6 +165,26 @@ def test_every_safety_fact_is_recorded_before_the_lineage_await(event):
             assert not node._proposals  # the venue refused the replacement
         release.set()
         await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(run())
+
+
+def test_a_replaced_rows_child_read_cannot_move_the_binding_back():
+    """A newer binding made while a replaced order's child read is out (await B) stands."""
+
+    async def run():
+        node = client()
+        first = await _successor(node, sell=False)
+        parent = deepcopy(node.gateway.sdk.rows[first["replaces"]])
+        await node._modify_order(_cmd("modify"))
+        newest = node.gateway.sdk.confirm()
+        entered, release = _hold(node, f"/orders/{parent['replaced_by']}")
+        task = asyncio.create_task(node._report(parent))
+        await asyncio.wait_for(entered.wait(), 1)
+        await node._on_trade_update(_event("new", newest))
+        release.set()
+        assert await task is None
+        assert node._active["fixture-entry"] == newest["id"]
 
     asyncio.run(run())
 
