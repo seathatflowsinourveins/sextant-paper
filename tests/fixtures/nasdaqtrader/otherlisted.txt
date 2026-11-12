@@ -1,0 +1,6 @@
+ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
+A|Agilent Technologies, Inc. Common Stock|N|A|N|100|N|A
+CECO|CECO Environmental Corp. Common Stock|F|CECO|N|100|N|CECO
+IBM|International Business Machines Corporation Common Stock|N|IBM|N|100|N|IBM
+MTEST|NYSE Texas, Inc. TEST Common Stock|M|MTEST|N|100|Y|MTEST
+File Creation Time: 1110202621:31||||||
