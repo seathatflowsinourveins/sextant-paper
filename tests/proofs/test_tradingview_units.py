@@ -148,17 +148,21 @@ def test_bounds_come_from_the_registry_and_memory_limits_have_no_default() -> No
     assert producer["MemorySwapMax"] == "0" and sync["MemorySwapMax"] == "0"
 
 
-def test_restart_policy_follows_each_module() -> None:
+def test_restart_policy_follows_each_module(tmp_path: Path) -> None:
     producer = _unit(DEPLOY / PRODUCER)
     sync = _unit(DEPLOY / SYNC)
     # The producer sleeps across closed windows itself; only a crash or refusal ends it.
     assert producer["Service"]["Type"] == "simple"
     assert producer["Service"]["Restart"] == "on-failure"
     assert producer["Install"]["WantedBy"] == "default.target"
-    # The loop exits 0 at the display close (never restarted by on-failure); a latched run is
-    # refused again before any session opens, and the stored sign-in needs no browser.
+    # The loop exits 0 at the display close; exit 2 keeps a refusal stopped.
+    # The stored sign-in needs no browser.
     assert sync["Service"]["Type"] == "simple"
     assert sync["Service"]["Restart"] == "on-failure"
+    assert sync["Service"]["RestartPreventExitStatus"] == "2"
+    done, _, units, _ = _install(tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert _unit(units / SYNC)["Service"]["RestartPreventExitStatus"] == "2"
     assert "Install" not in sync
     for unit in (producer, sync):
         assert unit["Service"]["WorkingDirectory"] == "%h/sextant"

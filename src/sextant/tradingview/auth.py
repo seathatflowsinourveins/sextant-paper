@@ -212,7 +212,8 @@ async def official_client(
             r.status_code == 401
             or (r.status_code == 404 and r.request.url.path.startswith("/.well-known/"))
             or (guard is not None and _is_refresh(r.request) and not guard.reason())
-        )
+        ),
+        stream_url=SERVER,
     )
     with sensitive_logging():
         try:
