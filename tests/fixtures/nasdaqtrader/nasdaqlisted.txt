@@ -1,0 +1,4 @@
+Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares
+AACG|ATA Creativity Global - American Depositary Shares, each representing two common shares|S|N|D|100|N|N
+AAPL|Apple Inc. - Common Stock|Q|N|N|40|N|N
+File Creation Time: 1110202621:31|||||||
