@@ -28,3 +28,5 @@ B's opt-in `--attended-test-entry INSTRUMENT` makes one gated test attempt; dura
 
 Supervision repeats the same start command and admission on every attempt, with both incumbent lease roots; guard exit 2 stays stopped. Prove successive attempts against different holders, and require venue/lease post-checks before handover. Restart supervision does not prove continuous protection; [restart lesson and sources](LESSONS.md#6-a-restart-repeats-admission).
 Start runtime proof stimuli from observed runtime callbacks and stop after repeated completed polls, keeping native logger lifetime and owner-thread GC; a pre-start wall timer can race the startup custody gate under CPU load. [Native lifecycle sources and slow-start paging proof](../manifest.md).
+
+Honor `EntryState.on_trade` returning False before downstream trade processing or entry submission; a retained ready run cannot make a rejected print an entry trigger. Evidence: LEAD-2218 addendum 1 and the retained R3 regression; [rejection lesson](LESSONS.md#7-a-rejected-print-stops-its-entry-path).
