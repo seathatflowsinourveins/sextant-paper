@@ -351,13 +351,17 @@ def test_a_late_refusal_leaves_an_unsent_modify_reserved():  # P2-b
         await node._submit_order(NS(order=order(), params={}))
         venue, pacer = node.gateway.sdk, node.gateway.pacer
         row, venue.patch = next(iter(venue.rows.values())), Mock(side_effect=_api(422))
-        await node._modify_order(_cmd("modify"))  # Refused; its stream echo comes late.
+        await asyncio.gather(node._modify_order(_cmd("modify")), return_exceptions=True)
+        # Ambiguous (E5 u12): its stream refusal answers it, and that echo comes again late.
+        refusal = _event("order_replace_rejected", row | {"status": "new"})
+        await node._on_trade_update(refusal)
+        node.generate_order_modify_rejected.assert_called_once()
         node.generate_order_modify_rejected.reset_mock()
         pacer.bucket.tokens = 1  # Read passes; PATCH waits, unsent.
         task = asyncio.create_task(node._modify_order(_cmd("modify")))
         await asyncio.sleep(0.01)
         assert pacer.queue
-        await node._on_trade_update(_event("order_replace_rejected", row | {"status": "new"}))
+        await node._on_trade_update(refusal)
         node.generate_order_modify_rejected.assert_not_called()
         assert list(node._proposals) == ["fixture-entry-r2"]
         task.cancel()
