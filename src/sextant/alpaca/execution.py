@@ -18,6 +18,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from decimal import Decimal
 from threading import Event
+from types import SimpleNamespace
 from typing import Any
 
 from alpaca.common.exceptions import APIError
@@ -31,6 +32,7 @@ from nautilus_trader.live.clients import ExecutionClient
 from nautilus_trader.model import (
     AccountBalance,
     ClientOrderId,
+    ExecutionMassStatus,
     Money,
     OrderStatus,
     VenueOrderId,
@@ -561,14 +563,41 @@ class AlpacaExecutionClient(ExecutionClient):
         if kind == "listening":
             if self._listening is not None and not self._listening.done():
                 self._listening.set_result(None)
-            elif not self.stream_live:
-                Logger("AlpacaExecution").warning(
-                    "Alpaca trade stream resubscribed; updates in the gap are not read back"
-                )
+            elif not self.stream_live:  # Resubscribed after a loss: read the gap back.
+                self.create_task(self._recover(), "alpaca-recovery")
             self.stream_live = True
         elif self.stream_live:  # A new socket: the one the SDK had was lost.
             self.stream_restarts += 1
             self._stream_lost("Alpaca trade stream lost; the SDK is reconnecting")
+
+    async def _recover(self) -> None:
+        """Hand the engine one mass status of what the stream missed, as Derive does after each
+        reconnect (execution.rs:2563-2575); the engine reconciles it as at startup
+        (engine/mod.rs:1119-1121). Fills are the engine's inference from the order reports:
+        this client's fill history stays unqualified (``_generate_fill_reports``)."""
+        # The engine's report commands have no Python constructor (live/__init__.pyi:543-582);
+        # this one carries their fields: the whole history, as the startup composer reads it.
+        scope: Any = SimpleNamespace(open_only=False, instrument_id=None, start=None, end=None)
+        # Stamped before the first await, as the composer does (python/client/mod.rs:2118-2120):
+        # a fill the stream delivers during the reads stays newer than the snapshot.
+        ts_init, socket = self.clock.timestamp_ns(), self.stream_restarts
+        try:
+            orders = await self._generate_order_status_reports(scope)
+            positions = await self._generate_position_status_reports(scope)
+        except Exception as exc:
+            self.coverage_complete = False
+            if not isinstance(exc, IncompleteCoverage):  # Its rows are already kept.
+                self.failures.append((None, exc))
+            Logger("AlpacaExecution").error(f"Alpaca trade stream recovery failed: {exc}")
+            return
+        if self.stream_restarts != socket:  # Lost again during the reads: the next ack reads.
+            self.coverage_complete = False
+            return
+        venue: Any = self.venue  # Set at construction (live/clients.py); never None here.
+        mass = ExecutionMassStatus(self.client_id, self.account_id, venue, ts_init)
+        mass.add_order_reports(orders)
+        mass.add_position_reports(positions)
+        self._handle_report(mass)
 
     def _stream_lost(self, reason: str) -> None:
         """Visible at once, as the official Derive client does (execution.rs:805-807, 842-846)."""
@@ -1144,6 +1173,7 @@ class AlpacaExecutionClient(ExecutionClient):
                 failures.append((row, exc))
         if failures:
             self.coverage_complete = False
+            self.failures.extend(failures)  # Kept, as the order reader keeps its rows.
             raise IncompleteCoverage(reports, failures)
         self.coverage_complete = self._orders_complete and not self._held
         return reports
