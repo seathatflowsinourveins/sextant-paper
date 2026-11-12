@@ -1,0 +1,14 @@
+# NON-SECRET run choices only. Copy to ~/.config/sextant/paper/paper-b-stage1.params.
+# Complete every blank from the approved run kit; no defaults or secret values.
+# Absolute paths only: systemd does not expand ~, $HOME or %h inside these values.
+B_ACCOUNT_CONFIG=
+B_CLAIM_LIST=
+B_RECEIPT_DIR=
+B_DURATION_S=
+# Each current holder's existing root, never fresh per-run directories.
+B_WRITER_LEASE_ROOT=
+B_STREAM_LEASE_ROOT=
+B_EXISTING_STREAMS=
+B_LEASE_SOURCE=
+# Non-secret expected-account suffix, not the full identity or an API credential.
+B_EXPECTED_ACCOUNT_SUFFIX=

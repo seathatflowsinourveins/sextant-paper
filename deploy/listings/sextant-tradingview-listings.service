@@ -1,0 +1,15 @@
+[Unit]
+Description=Sextant NASDAQ Trader directory files for the TradingView display producer
+Documentation=https://github.com/seathatflowsinourveins/sextant/blob/main/deploy/listings/README.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/sextant
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin PYTHONUNBUFFERED=1
+# Public files, no key. A refused download exits 1 and keeps the previous good files.
+ExecStart=%h/.local/bin/uv run --frozen python -m sextant.tradingview.listings %h/sextant-data/tradingview-prestage
+# Runs only after a successful stage. The producer reads the files once at start
+# (prestage.py run -> load_maps), so a running producer is restarted to see today's files.
+ExecStartPost=/usr/bin/systemctl --user try-restart sextant-tradingview-prestage.service
+MemorySwapMax=0

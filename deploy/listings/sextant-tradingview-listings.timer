@@ -1,0 +1,11 @@
+[Unit]
+Description=Sextant NASDAQ Trader directory files before the display window
+
+[Timer]
+# UNCALIBRATED schedule, authority: deploy/listings/parameters.json on_calendar.
+OnCalendar=Mon..Fri *-*-* 03:00:00 America/New_York
+Persistent=true
+Unit=sextant-tradingview-listings.service
+
+[Install]
+WantedBy=timers.target
