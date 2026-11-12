@@ -29,9 +29,11 @@ shell start command; use this reviewed unit path after landing.
    directory, positive duration, sourced stream count/statement and non-secret
    expected-account suffix. Set `B_WRITER_LEASE_ROOT` to the old writer's existing
    locks directory and `B_STREAM_LEASE_ROOT` to the producer's existing leases
-   directory, as the kit specifies. Never choose fresh per-run roots: these must
-   exclude each current holder in its own location. No separate recoverable state
-   directory exists: receipt-dir contains the receipt and lifecycle journal;
+   directory, as the kit specifies. Never choose fresh per-run roots: the account
+   writer and market-data stream each exclude their current holder. The REST-only
+   display producer uses a separate fixed scope under that same market-data root,
+   so it can coexist with the sole stream holder; it grants no stream admission.
+   No separate recoverable state directory exists: receipt-dir contains the receipt and lifecycle journal;
    restarting requires the
    node's existing flat-start checks. Clear any stale full expected-account ID in
    the manager's environment before using a suffix; a full identity takes precedence.

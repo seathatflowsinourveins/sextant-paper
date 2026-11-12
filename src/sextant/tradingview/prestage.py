@@ -8,7 +8,7 @@ TradingView endpoint, and places no order.
 
 Source: the merged ``host.py``, ``bridge.py``, ``producer.py`` and
 ``baseline.py`` (alpaca-py 0.44.0 REST bars, ADR-0003, northstar-lanes
-registry). The producer supplies the operating clock and the slot-2 lease; it
+registry). The producer supplies the operating clock and the REST display lease; it
 adds no ranking, projection or clock rule of its own.
 """
 
@@ -61,7 +61,7 @@ from sextant.tradingview.cadence import Cadence
 from sextant.tradingview.host import BarFidelityHost, load_symbol_map
 from sextant.tradingview.inputs import read_research_inputs
 from sextant.tradingview.listings import creation_time
-from sextant.tradingview.producer import Clocks, reserve_stream
+from sextant.tradingview.producer import Clocks, reserve_rest_display
 from sextant.tradingview.ranked_view import generation_view, view_document, write_view
 
 NS = 1_000_000_000
@@ -76,7 +76,6 @@ DEFAULT_K2_REGISTRY = ROOT / "lanes/tradingview/k2-ranking.params.json"
 DEFAULT_PRESTAGE_PARAMETERS = ROOT / "lanes/tradingview/prestage-parameters.json"
 DEFAULT_DISPLAY_BOUNDS = ROOT / "lanes/tradingview/display-bounds.params.json"
 DEFAULT_STATE_ROOT = Path.home() / "sextant-data" / "tradingview-prestage"
-STREAM_SOURCE = "REST-only bar-fidelity display host; zero streams opened on slot 2"
 SIP_AUTHORITY = "slot-2 SIP market-data entitlement; REST-only display host"
 MAPPING_SOURCE = "NASDAQ Trader nasdaqlisted.txt + otherlisted.txt read 2026-11-09"
 REFERENCE_SOURCE = "alpaca_sip_split_1day official split-adjusted close"
@@ -84,7 +83,7 @@ ASSET_SOURCE = (
     "NASDAQ Trader directory operating-company superset; NOT PIT membership; "
     "halt status unknown (no status receipt)"
 )
-PROVENANCE = "alpaca_sip_raw_1min prior XNYS sessions; bar fidelity streaming one segment"
+PROVENANCE = "alpaca_sip_raw_1min prior XNYS sessions; bar fidelity replay of one segment"
 KEY_NAMES = ("ALPACA_PAPER_2_API_KEY", "ALPACA_PAPER_2_SECRET_KEY")
 BUDGET_NAME = "prestage_request_budget"
 BOUNDS = {"gap_bound": "fraction", "rvol_bound": "ratio", "max_age_s": "seconds"}
@@ -895,11 +894,9 @@ def run(
             refused_ns = int(clock())
             sleep(max(0.0, (segment.end_ns - refused_ns) / NS))
             continue
-        with reserve_stream(
+        with reserve_rest_display(
             state_root / "leases",
             paper_slot=2,
-            existing_streams=0,
-            source=STREAM_SOURCE,
         ) as lease:
             if source_factory is None:
                 rate = load_request_budget()
