@@ -17,6 +17,7 @@ tree by `scripts/ecosystem_index.py`; run `just session-start` to check it.
 
 ## Handbook
 
+- [Paper loop lessons](docs/handbook/LESSONS.md) — Lessons from the attended runs and lead rulings of 2026-11-11. Keep each lesson short, with its evidence; record the resulting practice in practices.
 - [Ecosystem](docs/handbook/ecosystem.md) — This repository owns Paper B's engine loop, the TradingView ranked-list display and their harness. It does not own options, IBKR, research, the trial-ledger writer or sim...
 - [Delivery lifecycle](docs/handbook/lifecycle.md) — Work on one branch in one Orca worktree. The landing decision builds on sextant-harness's branch/PR helper and GitHub's ruleset API, with ci as the only merge check.
 - [Philosophy](docs/handbook/philosophy.md) — The paper loop tests whether ranking early movers, entering promptly, following with broker-held protection and re-entering or rotating works. It claims no measured merit before...
