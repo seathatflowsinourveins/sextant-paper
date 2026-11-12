@@ -2,7 +2,7 @@
 
 This repository was created from `seathatflowsinourveins/sextant-harness`, initial paper commit `cc156d07e6d8fda8263a7c1323c641aae65765ac`. The 2026-11-11 adaptation builds on that template for ci-only landing; [ADAPT.md](ADAPT.md) lists the changes and [ADR-0001](docs/adr/0001-sextant-foundation.md) records the decision. The table below is the **historical template inventory**, including removed files, not a claim that adapted files are still byte-identical or that removed workflows remain active. Git records adaptation changes.
 
-No Sextant trading code is included in this adaptation. Later import PRs must name their exact source SHA here after the lead approves the measured closure.
+The harness adaptation initially contained no trading code. The approved paper source import is recorded separately below.
 
 # Origins
 
@@ -125,3 +125,7 @@ Every file in this tree and where it comes from. Source: Sextant, `main` at `3b5
 | `scripts/` other than `pr-check.sh`, `dsh_profile_doctor.py`, `ecosystem_index.py` | host doctors, key store and wrappers, role launchers, trading data scripts |
 | `tests/proofs/test_foundation.py`, `test_delivery_rules.py`, `test_landing_practices.py`, `test_review_bots.py`, `test_start.py`, `test_workflows.py` | mixed or host-specific proofs: they assert Sextant's settings, documents, App file or WSL setup |
 | `uv.lock` | locks Sextant's trading dependencies; run `uv lock` after adoption |
+
+## Paper source import
+
+The runtime closure and fourteen runtime/deployment parameter files come from seathatflowsinourveins/sextant at `bbbe7f5e51159c346b28117bff93361439d2e5c9`, moved byte-identical. See [the comparison table](docs/import-evidence.md) and [integration landscape](docs/landscape.md). The source repository's manifest/design and excluded lanes were not imported.

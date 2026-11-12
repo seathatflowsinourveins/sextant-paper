@@ -1,0 +1,58 @@
+# Owner limits and capability conditions: docs/adr/0009-order-rate-limits.md.
+# Source fields only. Targets do not attest a raised account limit or deployment.
+# Alpaca caps include trading queries; paper is ineligible for the increased rate (northstar@b384d298d217:docs/decisions/0022-execution-profile-24x5-leverage-throughput.md, support reply).
+# The owner, 2026-11-06: "always previous stated limit ,1000trades/min live lane and 200 paper, 3000for ibkr paper and live".
+# What each counts, its budget and what must be true for it to hold: docs/adr/0009-order-rate-limits.md.
+owner_limits_per_min:
+  alpaca_live: 1000
+  alpaca_paper: 200
+  ibkr_paper_and_live: 3000
+lanes:
+  # northstar-trading@8256c16c31dc:configs/lanes.yaml:10-17; northstar-lanes@00203275944a:configs/lanes.yaml:8-13.
+  alpaca-paper-a:
+    venue: ALPACA
+    mode: paper
+    calibration_state: UNCALIBRATED
+    broker_limit_per_min: 200
+    order_actions_budget_per_min: 180
+  # northstar-trading@8256c16c31dc:configs/lanes.yaml:50-55; northstar-lanes@00203275944a:configs/lanes.yaml:15-20.
+  alpaca-paper-b:
+    venue: ALPACA
+    mode: paper
+    calibration_state: UNCALIBRATED
+    broker_limit_per_min: 200
+    order_actions_budget_per_min: 180
+  # northstar-trading@8256c16c31dc:configs/lanes.yaml:84-95; northstar-lanes@00203275944a:configs/lanes.yaml:22-27 has 180, without this reserve.
+  # Asset GETs share 200/min; clock/calendar measured separately at 1000/min. Option-contract/announcement membership is unverified.
+  alpaca-paper-c:
+    venue: ALPACA
+    mode: paper
+    calibration_state: UNCALIBRATED
+    broker_limit_per_min: 200
+    order_actions_budget_per_min: 150
+    mcp_reserve_per_min: 50
+  # northstar-trading@8256c16c31dc:configs/lanes.yaml:121-136; northstar-lanes@00203275944a:configs/lanes.yaml:29-39 (names Databento instead of IB).
+  # northstar@b384d298d217:docs/decisions/0022-execution-profile-24x5-leverage-throughput.md:47,90: owner 3000/min needs >=200 lines for a burst; not feasible at default.
+  # All outbound requests share lines/2 per second; streamed ticks do not count. Default <=80%; legacy 30/s retires only after rotation is paced.
+  # OER=(submits+modifies+cancels)/(fills+1)<=20/day; sustained 3000/min needs about 58.5k fills/day. Paper OER applicability unverified.
+  ibkr-paper:
+    venue: INTERACTIVE_BROKERS
+    mode: paper
+    calibration_state: UNCALIBRATED
+    market_data_lines: 100
+    broker_limit_msgs_per_sec: 50
+    order_actions_budget_per_sec: 40
+    order_actions_budget_per_sec_ib_data: 30
+    oer_max_per_day: 20
+    max_working_orders_per_side_per_contract: 15
+    market_data_source: ib
+  # northstar-lanes@00203275944a:configs/lanes.yaml:41-46 supplies the owner's 1000/min target and 870-action budget.
+  # northstar-trading@8256c16c31dc:configs/lanes.yaml:161-166 retains 200/180 until written confirmation; no raised capability is verified here.
+  # northstar@b384d298d217:docs/decisions/0022-execution-profile-24x5-leverage-throughput.md:46,72-85: Elite 1000 includes queries, shared 15/s bucket; Pro-Line eligibility unresolved.
+  # Above 1000 needs FIX or written raise. Paper accounts are ineligible for the increased rate. No IBKR-live entry exists in either source config.
+  alpaca-live:
+    venue: ALPACA
+    mode: live
+    broker_limit_per_min: 1000
+    order_actions_budget_per_min: 870
+    requires: [human-promotion, alpaca-limit-raise-confirmed, paper-track-record]

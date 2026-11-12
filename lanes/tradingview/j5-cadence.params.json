@@ -1,0 +1,130 @@
+{
+  "schema": "j5-cadence.registry/1",
+  "rows": [
+    {
+      "name": "enabled",
+      "unit": "flag",
+      "value": 1,
+      "source": "Sextant lead 2026-11-09 TV-LOOP ruling, LEAD-1219-tv-pr3-skills.md sha256 045f4b2e01128f3e5db21acef340f451451cca4a99994f4fb69287659de266a1; enabled=1 in the same reviewed PR, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "changed_only",
+      "unit": "flag",
+      "value": 1,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "max_concurrent_runs",
+      "unit": "runs",
+      "value": 1,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "max_retries",
+      "unit": "retries",
+      "value": 0,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "overnight_enabled",
+      "unit": "flag",
+      "value": 0,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "onset_floor_s",
+      "unit": "seconds",
+      "value": 150,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "regular_floor_s",
+      "unit": "seconds",
+      "value": 300,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "usage_floor_s",
+      "unit": "seconds",
+      "value": 900,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "weekly_usage_backoff_pct",
+      "unit": "percent",
+      "value": 80,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "display_start_minute_et",
+      "unit": "minute ET",
+      "value": 240,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "display_end_minute_et",
+      "unit": "minute ET",
+      "value": 1200,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "am_start_minute_et",
+      "unit": "minute ET",
+      "value": 420,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "am_end_minute_et",
+      "unit": "minute ET",
+      "value": 630,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "pm_start_minute_et",
+      "unit": "minute ET",
+      "value": 900,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "pm_end_minute_et",
+      "unit": "minute ET",
+      "value": 960,
+      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    }
+  ],
+  "measurements": {
+    "first_session_j5_run_time_ns": null,
+    "first_session_date": null,
+    "run_receipt_source": null
+  }
+}

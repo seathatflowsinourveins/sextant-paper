@@ -1,0 +1,146 @@
+[
+  {
+    "name": "request_budget",
+    "unit": "count",
+    "value": 180,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/lanes.yaml:alpaca-paper-b; Sextant ADR-0009 R2",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "broker_limit",
+    "unit": "count",
+    "value": 200,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/lanes.yaml:alpaca-paper-b; Sextant ADR-0009 R2",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "window_s",
+    "unit": "seconds",
+    "value": "60",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/lanes.py:PacerBudget; 60 seconds per minute",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "burst_fraction",
+    "unit": "ratio",
+    "value": "0.1",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/execution/pacer.py:OrderPacer.for_budget; Sextant ADR-0010 G4",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "cancel_timeout_s",
+    "unit": "seconds",
+    "value": "10",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/risk/guard.py:RiskLimits; Sextant ADR-0010 G1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "cancel_retry_s",
+    "unit": "seconds",
+    "value": "5",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/risk/guard.py:RiskLimits",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "flatten_tick_s",
+    "unit": "seconds",
+    "value": "2",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/risk/actor.py:FLATTEN_TICK_NS; Sextant ADR-0010 G1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "backoff_base_s",
+    "unit": "seconds",
+    "value": "1",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/nautilus_alpaca/pacing.py:RequestPacer",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "backoff_max_s",
+    "unit": "seconds",
+    "value": "30",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/nautilus_alpaca/pacing.py:RequestPacer",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "reserve_per_open_position",
+    "unit": "request_tokens_per_position",
+    "value": 2,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/strategies/exit_manager/protection.py:241-261,357 (cancel each working order, then rest/replace the next stop or close: two requests per open position) and configs/lanes.yaml:1-6 (a slice of the budget reserved for queries/cancels/reconciliation; paper 200 broker vs 180 order budget); Sextant ADR-0007 C4 amendment 2026-11-09: structural floor, UNCALIBRATED until measured",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-09",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "reserve_per_exiting_position",
+    "unit": "request_tokens_per_position",
+    "value": 1,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/strategies/exit_manager/protection.py:241-261,357 (an exiting position's close is already in flight; one request remains for its cancel/amend) and configs/lanes.yaml:1-6 (a slice of the budget reserved for queries/cancels/reconciliation); Sextant ADR-0007 C4 amendment 2026-11-09: structural floor, UNCALIBRATED until measured",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-09",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "observation_reminder_s",
+    "unit": "seconds",
+    "value": "300",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/safeguards/__init__.py:REMINDER_NS",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "observation_max_edges",
+    "unit": "count",
+    "value": 500,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/safeguards/__init__.py:MAX_OBSERVATIONS",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "observation_money_step_fraction",
+    "unit": "ratio",
+    "value": "0.01",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/safeguards/__init__.py:gate; Sextant ADR-0010 G8",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "observation_leverage_step",
+    "unit": "leverage_multiple",
+    "value": "0.01",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/risk/actor.py; Sextant ADR-0010 G8",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "max_cancel_retries",
+    "unit": "count",
+    "value": 3,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/nautilus_alpaca/order_reducer.py:CancelAttempt; Sextant ADR-0007 recovery bounds K=config.max_retries default 3",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-06",
+    "scope": "REVIEWED"
+  }
+]
