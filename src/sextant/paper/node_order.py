@@ -93,6 +93,7 @@ from sextant.paper.b_protector_main import (
 )
 from sextant.paper.config import PaperAccount
 from sextant.paper.decision_record import DecisionLog, Row
+from sextant.paper.node_entries import strategy_config
 from sextant.paper.sessions import Session, session_at
 from sextant.ranking import node_ranking
 from sextant.ranking.consumer import RankingConsumer
@@ -706,24 +707,6 @@ def journal_into(log: DecisionLog) -> Journal:
     return lambda row: log.append(Row(row))
 
 
-def strategy_config(
-    args: OrderArguments, *, consumer: RankingConsumer | None, journal: Journal | None
-) -> BLifecycleConfig:
-    return BLifecycleConfig(
-        namespace=args.account.namespace,
-        instrument_ids=args.universe,
-        consumer=consumer,
-        rank_gate=RANK_GATE_ENABLED,
-        journal=journal,
-        entry_params=args.rows.entry,
-        exit_params=args.rows.exit,
-        commission_rate=args.rows.commission_rate,
-        basis_path=args.basis_path,
-        native_trail_fraction=args.rows.native,
-        width_rows=args.rows.width,
-    )
-
-
 def build(
     args: OrderArguments,
     *,
@@ -854,7 +837,11 @@ def run(
     # The Strategy takes no consumer only while the rank gate row is False (P2's
     # BLifecycleConfig refuses any other pair); with it off, B protects and no rank is read.
     # Only the bool False counts as off here, so a 0 or a missing value refuses.
-    if consumer is None and RANK_GATE_ENABLED.value is not False:  # before any lease
+    if (
+        consumer is None
+        and RANK_GATE_ENABLED.value is not False
+        and not (RANK_GATE_ENABLED.value is True and args.ranking is not None)
+    ):  # before any lease; build owns the optional in-node consumer
         detail = "the rank gate row is on and no RankingConsumer exists (ranking/registry.py:50)"
         return write_receipt(args, "refused", reason="ranking_consumer", detail=detail), 2
     if not (os.environ.get(EXPECTED_FULL_ENV) or os.environ.get(EXPECTED_SUFFIX_ENV)):
