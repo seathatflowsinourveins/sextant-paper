@@ -733,3 +733,89 @@ def test_a_page_raised_by_the_strategy_reaches_the_journal_file(tmp_path) -> Non
         {"kind": "page", "ts": 1, "instrument": "ZA.ALPACA", "reason": "width_unavailable"}
     ]
     assert strategy.journal_errors == 0
+
+
+@pytest.mark.parametrize("flag", ["--writer-lease-root", "--stream-lease-root", "--receipt-dir"])
+@pytest.mark.parametrize("value", ["", ".", "relative/directory"])
+@pytest.mark.parametrize("receipt_first", [True, False])
+def test_directory_arguments_refuse_before_admission(
+    tmp_path, monkeypatch, capsys, flag, value, receipt_first
+) -> None:
+    parts = argv(tmp_path)
+    parts[parts.index(flag) + 1] = value
+    index = parts.index("--receipt-dir")
+    receipt_pair = parts[index : index + 2]
+    del parts[index : index + 2]
+    parts = receipt_pair + parts if receipt_first else parts + receipt_pair
+    monkeypatch.chdir(tmp_path)
+    admitted = []
+
+    def forbidden(*args, **kwargs):
+        admitted.append(True)
+        raise AssertionError("invalid directory reached admission or node construction")
+
+    for name in ("load_account_config", "load_rows", "take_leases", "build", "run"):
+        monkeypatch.setattr(node_order, name, forbidden)
+    with pytest.raises(SystemExit) as stopped:
+        node_order.main(parts)
+    assert stopped.value.code == 2
+    reason = flag.removeprefix("--").replace("-", "_")
+    assert reason in capsys.readouterr().err
+    assert not admitted
+    assert not (tmp_path / "locks").exists() and not (tmp_path / "leases").exists()
+    assert not list(tmp_path.rglob("*.lock"))
+    receipts = list(tmp_path.rglob(node_order.RECEIPT))
+    if flag == "--receipt-dir":
+        assert not receipts and not (tmp_path / "relative").exists()
+    else:
+        assert receipts == [tmp_path / "receipts" / node_order.RECEIPT]
+        body = json.loads(receipts[0].read_text())
+        assert (body["phase"], body["reason"]) == ("refused", reason)
+
+
+def test_absolute_directory_arguments_accept_spaces_and_nonexistent_paths(tmp_path) -> None:
+    parts = argv(tmp_path)
+    for flag in ("--writer-lease-root", "--stream-lease-root", "--receipt-dir"):
+        parts[parts.index(flag) + 1] = str(tmp_path / flag / "new directory")
+    parsed = node_order.parse(parts)
+    assert parsed.writer_lease_root == tmp_path / "--writer-lease-root" / "new directory"
+    assert parsed.stream_lease_root == tmp_path / "--stream-lease-root" / "new directory"
+    assert parsed.receipt_dir == tmp_path / "--receipt-dir" / "new directory"
+    assert not parsed.receipt_dir.exists()
+
+
+@pytest.mark.parametrize("root", ["B_WRITER_LEASE_ROOT", "B_STREAM_LEASE_ROOT"])
+def test_incomplete_unit_parameters_cannot_start_a_node(tmp_path, monkeypatch, root) -> None:
+    # Unit 3d1eabc63fb13aee1b42c12253a3c59c033904c9, deploy/paper/
+    # sextant-paper-b-stage1.service:12: each ${VAR} is one argv item, even blank.
+    # That unit is pending on a separate branch: render its three directory substitutions
+    # over fixture arguments without depending on its landing, running a wrapper or keys.
+    params = {
+        "B_RECEIPT_DIR": str(tmp_path / "receipts"),
+        "B_WRITER_LEASE_ROOT": str(tmp_path / "locks"),
+        "B_STREAM_LEASE_ROOT": str(tmp_path / "leases"),
+    }
+    params[root] = ""
+    parts = argv(tmp_path)
+    for flag, parameter in (
+        ("--receipt-dir", "B_RECEIPT_DIR"),
+        ("--writer-lease-root", "B_WRITER_LEASE_ROOT"),
+        ("--stream-lease-root", "B_STREAM_LEASE_ROOT"),
+    ):
+        parts[parts.index(flag) + 1] = params[parameter]
+    monkeypatch.chdir(tmp_path)
+    entered = []
+
+    def forbidden(*args, **kwargs):
+        entered.append(True)
+        raise AssertionError("incomplete parameters reached admission or a client")
+
+    for name in ("load_account_config", "load_rows", "take_leases", "build", "run"):
+        monkeypatch.setattr(node_order, name, forbidden)
+    with pytest.raises(SystemExit) as stopped:
+        node_order.main(parts)
+    assert stopped.value.code == 2 and not entered
+    assert not (tmp_path / "locks").exists() and not (tmp_path / "leases").exists()
+    assert not list(tmp_path.rglob("*.lock"))
+    body = json.loads((tmp_path / "receipts" / node_order.RECEIPT).read_text())
+    assert (body["phase"], body["reason"]) == ("refused", root.removeprefix("B_").lower())
