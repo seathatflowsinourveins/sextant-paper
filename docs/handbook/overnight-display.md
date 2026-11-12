@@ -11,7 +11,8 @@ day at 20:00 to the trading date at 04:00, including Sunday evening and full
 overnight windows before half-days. XNYS holidays and weekend closures remain
 closed. These are session definitions, not tunable thresholds. Historical anchors
 use their own calendar dates and EST/EDT offsets. Scheduling subtracts absolute
-clocks when a weekend spans a daylight-saving transition.
+clocks when a weekend spans a daylight-saving transition. Cadence run receipts
+also use the trading date on both sides of midnight.
 
 Minute history selects `DataFeed.BOATS` using alpaca-py 0.44.0's existing paced REST
 transport. Daily references stay SIP, using the latest completed XNYS regular
@@ -22,6 +23,13 @@ distinct derived `DataFeed.OVERNIGHT` feed is never selected. Source:
 read 2026-11-11; alpaca-py v0.44.0 at
 `cc4cb3b7ba50ae250e621983c2779047fb16bb28`, `alpaca/data/enums.py`,
 `requests.py` and `historical/stock.py`.
+
+The house adapter requires aware timestamps to express New York session intent.
+That is stricter than the SDK: its request model also accepts naive UTC inputs
+and normalizes aware inputs to UTC. The integration does not rely on the SDK to
+reject naive datetimes. Vendor contracts do not establish this installation's
+entitlement or the correctness of a house baseline or admission rule; those
+remain separate from the offline application proofs.
 
 The display retains its close-times-volume baseline recipe. It is not claimed to
 be the shared calibration recipe, which uses VWAP. The sourced

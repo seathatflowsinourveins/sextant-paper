@@ -315,7 +315,7 @@ class Cadence:
                     "landed_sha": self.landed_sha,
                     "enable_source": self.enable_source,
                     "started_at_ns": at,
-                    "session_date": now.astimezone(ET).date().isoformat(),
+                    "session_date": _session(now)[0],
                     "members": desired,
                     "floor_s": floor,
                     "usage_source": usage_source,

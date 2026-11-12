@@ -11,7 +11,11 @@ from typing import Any, cast
 
 import pytest
 from alpaca.data.enums import DataFeed
+from alpaca.data.live import StockDataStream
 from alpaca.data.models import BarSet
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame
+from alpaca.trading.client import TradingClient
 from test_tradingview_prestage import (
     DAY,
     MINUTE_NS,
@@ -36,7 +40,7 @@ from sextant.tradingview.baseline import _session_start, build_baseline
 from sextant.tradingview.bridge import BridgeError, project_display_unit
 from sextant.tradingview.cadence import Cadence
 from sextant.tradingview.inputs import InputError, read_research_inputs
-from sextant.tradingview.loop import _pre_open, serve
+from sextant.tradingview.loop import _admission, _pre_open, serve
 from sextant.tradingview.producer import reserve_rest_display
 
 
@@ -48,6 +52,8 @@ def offline(monkeypatch):
     monkeypatch.setattr(socket.socket, "connect", refuse)
     monkeypatch.setattr(socket, "create_connection", refuse)
     monkeypatch.setattr(prestage, "_credentials", refuse)
+    monkeypatch.setattr(StockDataStream, "__init__", refuse)
+    monkeypatch.setattr(TradingClient, "__init__", refuse)
 
 
 def overnight(day=DAY):
@@ -227,6 +233,29 @@ def test_overnight_run_publishes_boats_with_completed_sip_reference(tmp_path, da
     assert source.days == [history[-1]]
     inputs = read_research_inputs(tmp_path / "unit", now=datetime.fromtimestamp(now_ns / NS, NY))
     assert inputs.memberships["NS movers"]
+    admitted = Cadence(
+        tmp_path / "admission",
+        gate.registry_path,
+        page=lambda _: None,
+        landed_sha="f" * 40,
+        enable_source="synthetic reviewed enablement",
+        initial_membership={"NS movers": ["NASDAQ:UNRELATED"], "NS focus": []},
+        initial_source="synthetic previous membership",
+    )
+    claimed = admitted.claim(
+        _admission(inputs),
+        now=datetime.fromtimestamp(now_ns / NS, NY),
+        weekly_usage_pct=D(0),
+        usage_source="synthetic",
+    )
+    assert claimed is not None
+    admitted.finish(
+        claimed["run_id"],
+        ended_at=datetime.fromtimestamp(now_ns / NS + 1, NY),
+        successful=True,
+        receipt_source="synthetic display completion",
+    )
+    assert json.loads(admitted.state_path.read_text())["first_session_date"] == day.isoformat()
     raw = json.loads((tmp_path / "unit" / "top100.json").read_text())
     assert raw["ranking_context"] == {
         "session": "overnight",
@@ -316,6 +345,51 @@ def test_operator_source_selects_boats_minutes_and_sip_daily(tmp_path, monkeypat
 def test_derived_feed_is_refused_before_credentials_or_a_request(tmp_path):
     with reserve_rest_display(tmp_path, paper_slot=2) as lease, pytest.raises(ValueError):
         prestage.operator_source(lease, requests_per_minute=200, feed=DataFeed.OVERNIGHT)
+
+
+def test_sdk_accepts_naive_utc_but_aware_new_york_expresses_our_session():
+    # T7 correction: awareness is the house adapter's policy, not an SDK restriction.
+    aware = StockBarsRequest(
+        symbol_or_symbols=list(SYMBOLS),
+        feed=DataFeed.BOATS,
+        timeframe=cast(TimeFrame, TimeFrame.Minute),
+        start=datetime(2026, 11, 8, 20, tzinfo=NY),
+    )
+    naive = StockBarsRequest(
+        symbol_or_symbols=list(SYMBOLS),
+        feed=DataFeed.BOATS,
+        timeframe=cast(TimeFrame, TimeFrame.Minute),
+        start=datetime(2026, 11, 9, 1),
+    )
+    assert aware.to_request_fields()["start"] == naive.to_request_fields()["start"]
+    assert naive.to_request_fields()["start"] == "2026-11-09T01:00:00+00:00"
+
+
+def test_quiet_minutes_carry_without_inventing_a_missing_historical_date():
+    sparse = tuple(
+        (
+            day,
+            tuple(
+                item
+                for item in bars(day, minutes=3)
+                if item.start_ns != at(day - timedelta(days=1), 20, 1)
+            ),
+        )
+        for day in PRIOR
+    )
+    table = build_baseline(
+        sparse,
+        symbols=SYMBOLS,
+        segment=overnight(),
+        feed="boats",
+        known_at=at(PRIOR[-1], 4),
+        provenance="recorded complete quiet-minute replies",
+    )
+    quiet = table.cumulative(SYMBOLS[0], "OVERNIGHT", 120)
+    resumed = table.cumulative(SYMBOLS[0], "OVERNIGHT", 180)
+    assert quiet is not None and resumed is not None
+    assert quiet.dollar_volume == D("10000") and quiet.trade_count == D(5)
+    assert resumed.dollar_volume == D("20000") and resumed.trade_count == D(10)
 
 
 def test_wrong_feed_cannot_replace_an_existing_display_unit(tmp_path):
