@@ -35,6 +35,10 @@ def offline_tv_account(request, tmp_path, monkeypatch):
     if request.node.path.name not in {
         "test_tradingview.py",
         "test_tradingview_account.py",
+        "test_tradingview_stop_record.py",
+        "test_tradingview_get_stream.py",
+        "test_tradingview_record_failure.py",
+        "test_tradingview_empty_response.py",
         "test_tradingview_symbols.py",
         "test_tradingview_bridge.py",
         "test_tradingview_loop.py",
