@@ -358,6 +358,7 @@ class AlpacaExecutionClient(ExecutionClient):
         self.report_trace: dict[str, dict[str, Any]] = {}  # per stage, counts only
         # Owner rows the engine would skip anyway; kept with payload and reason.
         self.withheld: list[tuple[dict, str]] = []
+        self.order_rows: list[dict] = []  # Venue lineage evidence; native reports omit these links.
         self.withheld_positions: list[tuple[dict, str]] = []
         self._executing: set[str] = set()
         self._cancels: set[str] = set()  # Venue ids with a sent, unanswered DELETE.
@@ -1111,6 +1112,7 @@ class AlpacaExecutionClient(ExecutionClient):
         issued = self._now()
         self.coverage_complete = self._orders_complete = False
         self.withheld = []
+        self.order_rows = []
         try:
             rows = await self._list_orders(
                 {
@@ -1127,6 +1129,7 @@ class AlpacaExecutionClient(ExecutionClient):
         except IncompleteCoverage as exc:
             self.failures.extend(exc.failures)
             raise
+        self.order_rows = rows
         reports, failures = [], []
         for row in rows:
             try:

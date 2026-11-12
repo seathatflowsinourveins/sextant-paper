@@ -45,3 +45,19 @@ to `tests/proofs/test_b_paper_units.py`; [systemd.service(5)](https://www.freede
 `Restart=`/`RestartPreventExitStatus=`, read 2026-11-11. The
 [operator instructions](../../deploy/paper/README.md#unattended-stage-2-protection)
 retain the admission boundary.
+
+## 7. Admission walks both sides of reconciliation
+
+A terminal predecessor does not end its replacement lineage. Retain the venue links
+that native reports omit, then walk cached and withheld rows together and count a
+shared working endpoint once. A resolved terminal lineage admits; a missing or
+cyclic terminal link refuses. Admission evidence never grants owner-order mutation
+authority.
+
+Evidence: LEAD-2218 section 1, 2026-11-11; R2's two retained native-node witnesses in
+`tests/proofs/custody/test_r2_review_witnesses.py` failed before this fix. Native cache
+and report shapes: NautilusTrader `d53849b216e20f2c122ca01b4dd0da377638b186`,
+`crates/common/src/python/cache.rs:756-800`,
+`python/nautilus_trader/model/__init__.pyi:4862-4901`; venue links and replacement
+client-id semantics: alpaca-py `cc4cb3b7ba50ae250e621983c2779047fb16bb28`,
+`alpaca/trading/models.py:223-224`, `requests.py:300`.

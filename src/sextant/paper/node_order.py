@@ -438,30 +438,32 @@ class Gate:
 
     def check(self, cache: Any) -> list[str]:
         positions = list(cache.positions_open())
-        house = [
-            order
+        house = {
+            str(order.venue_order_id or order.client_order_id)
             for order in cache.orders_open()
             if str(order.client_order_id).startswith((HOUSE_PREFIX, self.old_prefix))
-        ]
+        }
         withheld = [row for client in self.clients for row, _ in client.withheld_positions]
         # A withheld row is withheld whatever its status (its name is not claimed); only a row
         # that has not ended is open. Alpaca's terminal statuses (execution.py _TERMINAL) are
         # the engine's closed set (rc8 crates/model/src/enums.rs:1489-1500) plus "replaced",
         # which ends only its own row: its whole lineage is walked (_lineage).
         rows = [row for client in self.clients for row, _ in client.withheld]
+        # Include the venue evidence for cached orders: rc8 reports omit replacement links.
+        rows += [row for client in self.clients for row in getattr(client, "order_rows", ())]
         by_id = {row.get("id"): row for row in rows}
-        ends, unresolved = {}, 0
-        for row in rows:
+        ends, unresolved = set(), 0
+        for row in by_id.values():
             if not str(row.get("client_order_id", "")).startswith((HOUSE_PREFIX, self.old_prefix)):
                 continue
             state, last = _lineage(row, by_id)
             if state == "unresolved":
                 unresolved += 1
             elif state == "open":
-                ends[id(last)] = last  # one lineage counts once, however many rows lead into it
+                ends.add(last["id"])  # one lineage counts once, however many rows lead into it
         self.counts = {
             "open_positions": len(positions),
-            "open_house_orders": len(house) + len(ends),
+            "open_house_orders": len((house - by_id.keys()) | ends),
             "withheld_holdings": len(withheld),
             "unresolved_replacements": unresolved,
         }
