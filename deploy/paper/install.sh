@@ -19,9 +19,9 @@ mkdir -p "$unit_dir"
 escaped="${repo//\\/\\\\}"
 escaped="${escaped//&/\\&}"
 escaped="${escaped//|/\\|}"
-for unit in sextant-paper-b-stage1.service sextant-paper-b-test-entry.service; do
+for unit in sextant-paper-b-stage1.service sextant-paper-b-test-entry.service sextant-paper-b-stage2.service; do
   sed -e "s|%h/sextant/|$escaped/|g" -e "s|%h/sextant\$|$escaped|" \
     "$here/$unit" >"$unit_dir/$unit"
 done
 systemctl --user daemon-reload
-echo "Attended paper units written, not enabled or started; see deploy/paper/README.md."
+echo "Paper units written, not enabled or started; see deploy/paper/README.md."
