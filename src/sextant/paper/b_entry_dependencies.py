@@ -93,9 +93,20 @@ def load_basis_path(parameters: Path) -> Path:
     rows = json.loads(parameters.read_text(encoding="utf-8"), parse_float=Decimal)
     if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
         raise ValueError("basis_path: state parameters must be rows")
-    found = _indexed(rows, {"basis_state_home", "basis_path"})
+    bound = "basis_receipt_max_bytes"
+    found = _indexed(rows, {"basis_state_home", "basis_path", bound})
+    row = found[bound]
+    _authority(row)
+    limit = row.get("value")
+    if row.get("unit") != "bytes":
+        raise ValueError(f"{bound}: bytes unit required")
+    if row.get("calibration_state") not in {"UNCALIBRATED", "CALIBRATED"} or limit is None:
+        raise ValueError(f"{bound}: unavailable")
+    if type(limit) is not int or limit <= 0:
+        raise ValueError(f"{bound}: positive integer required")
     paths = {}
-    for name, row in found.items():
+    for name in ("basis_state_home", "basis_path"):
+        row = found[name]
         _authority(row)
         value = row.get("value")
         if row.get("unit") != "path" or not isinstance(value, str) or not value.strip():
@@ -111,6 +122,10 @@ def load_basis_path(parameters: Path) -> Path:
         raise ValueError("basis_path: must be a file under basis_state_home")
     if not path.parent.is_dir() or (path.exists() and not path.is_file()):
         raise ValueError("basis_path: existing parent and a state-file location required")
+    # Python's JSON docs recommend bounding input before parsing (read 2026-11-11).
+    # The registry supplies the ceiling; no numeric default is authorized here.
+    if path.exists() and path.stat().st_size > limit:
+        raise ValueError(f"basis_path: receipt exceeds {bound}")
     try:
         with tempfile.TemporaryFile(dir=path.parent):
             pass
