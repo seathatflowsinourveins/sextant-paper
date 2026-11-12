@@ -32,10 +32,10 @@ def enabled(monkeypatch):
     monkeypatch.setattr(node_order, "RANK_GATE_ENABLED", gate)
 
 
-def inputs(tmp_path, *, unavailable=None):
+def inputs(tmp_path, *, unavailable=None, damage="unavailable"):
     # Paper's import omits the old node-ranking proof; reuse its shipped input shape
     # with the ranking fixtures present here. These inputs carry no runtime authority.
-    args = node_order.parse(dependency_argv(tmp_path, unavailable=unavailable))
+    args = node_order.parse(dependency_argv(tmp_path, unavailable=unavailable, damage=damage))
     pub = publisher()
     ranking = RankingArguments(
         universe=pub.universe,
@@ -75,7 +75,7 @@ def inputs(tmp_path, *, unavailable=None):
     return args
 
 
-def dependency_argv(tmp_path, *, unavailable=None):
+def dependency_argv(tmp_path, *, unavailable=None, damage="unavailable"):
     parts = argv(tmp_path)
     if unavailable is not None:
         flag, name = {
@@ -84,10 +84,14 @@ def dependency_argv(tmp_path, *, unavailable=None):
         }[unavailable]
         path = Path(parts[parts.index(flag) + 1])
         data = json.loads(path.read_text())
-        data = [
-            r | {"value": None, "calibration_state": "UNAVAILABLE"} if r["name"] == name else r
-            for r in data
-        ]
+        # Fee syntax errors are already normalized by the validator; cent rounding
+        # can still trap on a finite but unrepresentable decimal.
+        change = (
+            {"value": "not-a-decimal" if unavailable == "exit" else "1E+999"}
+            if damage == "malformed_decimal"
+            else {"value": None, "calibration_state": "UNAVAILABLE"}
+        )
+        data = [r | change if r["name"] == name else r for r in data]
         altered = tmp_path / "unavailable.json"
         altered.write_text(json.dumps(data))
         parts[parts.index(flag) + 1] = str(altered)
@@ -122,9 +126,12 @@ def test_enabled_node_composition_supplies_the_consumers_segment_baseline(tmp_pa
 
 
 @pytest.mark.parametrize("name", ["exit", "commission_rate"])
-def test_unavailable_registry_dependency_still_refuses_native_entries(tmp_path, monkeypatch, name):
+@pytest.mark.parametrize("damage", ["unavailable", "malformed_decimal"])
+def test_unavailable_registry_dependency_still_refuses_native_entries(
+    tmp_path, monkeypatch, name, damage
+):
     enabled(monkeypatch)
-    args = inputs(tmp_path, unavailable=name)
+    args = inputs(tmp_path, unavailable=name, damage=damage)
     missing = "exit_params" if name == "exit" else name
 
     class Composed(Recording):
@@ -142,9 +149,14 @@ def test_unavailable_registry_dependency_still_refuses_native_entries(tmp_path, 
 
 
 @pytest.mark.parametrize("name", ["exit", "commission_rate"])
-def test_unavailable_registry_dependency_allows_protection_start(tmp_path, monkeypatch, name):
+@pytest.mark.parametrize("damage", ["unavailable", "malformed_decimal"])
+def test_unavailable_registry_dependency_allows_protection_start(
+    tmp_path, monkeypatch, name, damage
+):
     monkeypatch.setenv(node_order.EXPECTED_FULL_ENV, NUMBER)
-    args = replace(node_order.parse(dependency_argv(tmp_path, unavailable=name)), duration_s=1)
+    args = replace(
+        node_order.parse(dependency_argv(tmp_path, unavailable=name, damage=damage)), duration_s=1
+    )
     stand = Stand(AccountVenue())
     path, code = node_order.run(
         args,
@@ -161,14 +173,15 @@ def test_unavailable_registry_dependency_allows_protection_start(tmp_path, monke
 
 
 @pytest.mark.parametrize("name", ["exit", "commission_rate"])
-def test_unavailable_registry_dependency_allows_attended_entry(tmp_path, monkeypatch, name):
+@pytest.mark.parametrize("damage", ["unavailable", "malformed_decimal"])
+def test_unavailable_registry_dependency_allows_attended_entry(tmp_path, monkeypatch, name, damage):
     from . import test_b_attended_entry as attended
 
     monkeypatch.setenv(node_order.EXPECTED_FULL_ENV, NUMBER)
 
     def opted(path):
         # Alter only the registry input, preserving the existing attended fixture's intent.
-        parts = dependency_argv(path, unavailable=name)
+        parts = dependency_argv(path, unavailable=name, damage=damage)
         return replace(
             node_order.parse([*parts, "--attended-test-entry", str(attended.IID)]), duration_s=1
         )
