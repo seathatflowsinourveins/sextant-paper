@@ -92,7 +92,7 @@ def _traced(stage: str):
     def wrap(method):
         @functools.wraps(method)
         async def traced(self, command):
-            entry = self.report_trace[stage] = {
+            entry = {
                 "requests": {},
                 "failures": 0,
                 "skipped_unloaded": 0,
@@ -100,12 +100,17 @@ def _traced(stage: str):
                 "unlisted_order": 0,
                 "quantity_exceeds": 0,
             }
-            token = _STAGE.set(stage)
+            token = None
+            try:
+                self.report_trace[stage] = entry
+                token = _STAGE.set(stage)
+            except BaseException as fault:
+                entry["recorder_error"] = type(fault).__name__
             try:
                 return await method(self, command)
-            except Exception as exc:
-                entry.update(error=type(exc).__name__, failures=1)
-                try:  # Best effort: the recorder never replaces the generator's exception.
+            except BaseException as exc:
+                try:  # Observation includes cancellation; the generator's error still propagates.
+                    entry.update(error=type(exc).__name__, failures=1)
                     failures = exc.failures if isinstance(exc, IncompleteCoverage) else []
                     first = failures[0][1] if failures else exc
                     status = getattr(first, "status_code", None)
@@ -115,16 +120,19 @@ def _traced(stage: str):
                         failures=len(failures) or 1,
                         reason=_reason(first),
                     )
-                except Exception as fault:
+                except BaseException as fault:
                     entry["recorder_error"] = type(fault).__name__
                 raise
             finally:
-                _STAGE.reset(token)
-                with suppress(Exception):
+                try:
+                    if token is not None:
+                        _STAGE.reset(token)
                     if entry["skipped_unloaded"]:
                         Logger("AlpacaExecution").warning(
                             f"reconciliation {stage}: skipped_unloaded={entry['skipped_unloaded']}"
                         )
+                except BaseException as fault:
+                    entry["recorder_error"] = type(fault).__name__
 
         return traced
 
@@ -658,14 +666,20 @@ class AlpacaExecutionClient(ExecutionClient):
                     name, {"requests": 0, "rows": 0}
                 )
                 count["requests"] += 1
-        except Exception:
+        except BaseException as fault:
             count = None
+            with suppress(BaseException):
+                if stage is not None:
+                    self.report_trace[stage]["recorder_error"] = type(fault).__name__
         result = await self.gateway.call(kind, method, path, data, **kwargs)
         if count is not None:
             try:
                 count["rows"] += len(result) if isinstance(result, list) else 1
-            except Exception:
-                count["rows"] = None
+            except BaseException as fault:
+                with suppress(BaseException):
+                    if stage is not None:
+                        self.report_trace[stage]["recorder_error"] = type(fault).__name__
+                    count["rows"] = None
         return result
 
     def _instrument_id(self, row):
@@ -1137,14 +1151,20 @@ class AlpacaExecutionClient(ExecutionClient):
         if failures:
             self.failures.extend(failures)
             raise IncompleteCoverage(reports, failures)
-        self.coverage_complete = self._orders_complete = True
+        self._orders_complete = True
+        self.coverage_complete = not self._held and not self._releasing
         return reports
 
     def _provides_bulk_position_coverage(self, instrument_id):
         # A withheld row never authorises a flat inference for its instrument.
-        return self.coverage_complete and all(
-            self._instrument_id(row) != instrument_id
-            for row, _ in (*self.withheld, *self.withheld_positions)
+        return (
+            self.coverage_complete
+            and not self._held
+            and not self._releasing
+            and all(
+                self._instrument_id(row) != instrument_id
+                for row, _ in (*self.withheld, *self.withheld_positions)
+            )
         )
 
     @_traced("positions")
@@ -1175,7 +1195,7 @@ class AlpacaExecutionClient(ExecutionClient):
             self.coverage_complete = False
             self.failures.extend(failures)  # Kept, as the order reader keeps its rows.
             raise IncompleteCoverage(reports, failures)
-        self.coverage_complete = self._orders_complete and not self._held
+        self.coverage_complete = self._orders_complete and not self._held and not self._releasing
         return reports
 
     async def _list_fill_activities(self, params):

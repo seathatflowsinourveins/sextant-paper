@@ -973,10 +973,10 @@ def startup_cause(clients: list[Any]) -> dict[str, Any] | None:
             for stage, e in failed.items()
         ]
         line = f"order node ERROR startup reconciliation failed: {'; '.join(parts)}"
-    except Exception as fault:
+    except BaseException as fault:
         trace = {"recorder_error": type(fault).__name__}
         line = f"order node ERROR startup reconciliation failed: {trace}"
-    with suppress(Exception):
+    with suppress(BaseException):
         print(line, file=sys.stderr)
     return trace
 

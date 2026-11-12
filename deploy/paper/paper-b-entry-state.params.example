@@ -14,5 +14,14 @@
     "scope": "alpaca-paper-b",
     "source": "Operator supplies one durable file under basis_state_home, reused for the intended segment across node runs; LEAD-1452 part 4; SegmentBasis src/sextant/entry/sizing.py:17-50 at 7252b0f5c7ccdb416356aaddd9b53fa9a33bd405 binds account/segment/params_hash. No account/key-derived path",
     "last_change": "2026-11-11"
+  },
+  {
+    "name": "basis_receipt_max_bytes",
+    "unit": "bytes",
+    "value": null,
+    "scope": "alpaca-paper-b",
+    "source": "Python 3.13 JSON documentation recommends limiting input size before parsing (https://docs.python.org/3.13/library/json.html, read 2026-11-11), but supplies no numeric ceiling; searched that reference and NautilusTrader d53849b2 live node. No size value is authorized; AGENTS.md Rule 2 keeps admission unavailable",
+    "last_change": "2026-11-11",
+    "calibration_state": "UNAVAILABLE"
   }
 ]
