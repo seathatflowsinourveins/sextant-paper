@@ -30,8 +30,11 @@ shell start command; use this reviewed unit path after landing.
    expected-account suffix. Set `B_WRITER_LEASE_ROOT` to the old writer's existing
    locks directory and `B_STREAM_LEASE_ROOT` to the producer's existing leases
    directory, as the kit specifies. Never choose fresh per-run roots: these must
-   exclude each current holder in its own location. Receipt-dir contains the receipt
-   and lifecycle journal. Campaign recovery is unavailable; restarting requires the
+   exclude each current holder in its own location. The REST-only display producer
+   uses a separate fixed scope under that same market-data root, so it can coexist
+   with the sole stream holder; it grants no stream admission. Receipt-dir contains
+   the receipt and lifecycle journal. Campaign recovery is unavailable; restarting
+   requires the
    node's existing flat-start checks. Clear any stale full expected-account ID in
    the manager's environment before using a suffix; a full identity takes precedence.
 
