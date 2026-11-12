@@ -111,3 +111,7 @@ The table also covers the approved ten runtime defaults and four deployment CLI 
 ## Packaging configuration
 
 The distribution is named `sextant-paper`, while the approved import namespace remains `sextant`. The source build-system pin is retained; `tool.uv.build-backend.module-name = "sextant"` follows the official [uv build backend Modules documentation](https://docs.astral.sh/uv/concepts/build-backend/#modules), read 2026-11-11. An offline wheel build first failed looking for `src/sextant_paper/__init__.py`, then passed with this configuration. No copied source was changed.
+
+## Gate coverage of two merged squash titles
+
+The squash title of u14 (#20) says "identical to the gated cut 0a9a3182". No gate reviewed the final heads of u13 (#12) or u14; their review is the start-path review on the merged head.
