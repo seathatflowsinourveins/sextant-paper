@@ -1,25 +1,19 @@
 ## What changed
 
 ## Manifest row
-<!-- The docs/manifest.md row this PR adds or follows. -->
+<!-- Name the docs/manifest.md row in double quotes; local pr-check validates it. -->
 
 ## Upstream references
-<!-- repo@tag + full SHA and path, or a docs page with its read date. A self-built mechanism says `none exists:` and where you looked. -->
+<!-- repo@tag + full SHA and file:line, or docs page and read YYYY-MM-DD, or paper. -->
 
 ## How verified
-<!-- The commands you ran and their results. -->
+<!-- Commands and results, including ci and any new landscape coverage. -->
 
 ## How to revert
 
 ## Harness
-<!-- Runtime, version, model, effort. -->
-<!-- Fill the author placeholder with codex, claude or dsh. Fill the reviewer placeholder
-     with another family, or delete that line for the ADR-0001 default. Until filled,
-     placeholders deliberately block review. Keep one ASCII space,
-     no colon. Marker substrings count anywhere, including HTML comments and code blocks.
-     Choose before opening or the next new commit; reopening or toggling draft does not reroute. -->
+<!-- Runtime, version, model, effort; fill the author family, one ASCII space, no colon. -->
 Agent-Family <family>
-Review-Family <other-family-or-delete>
-
 
 ## Not verified
+<!-- ci is the only merge check. Real paper starts require AGENTS.md's exact-SHA review PASS. -->

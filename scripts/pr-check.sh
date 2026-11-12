@@ -1,53 +1,53 @@
 #!/usr/bin/env bash
-# Refuse a push from `just pr` before it leaves the machine: the Danger body rules and the
-# review window's raw size. danger/danger-js@14.1.0 `72540533c4f99bad772ba303be0eb4af6eddbdc4`:
-# `source/commands/danger-local.ts` (no PR metadata; body absent), `source/platforms/LocalGit.ts`
-# (`danger.github` absent), `source/platforms/git/localGetDiff.ts` (three-dot review window);
-# `docs/tutorials/fast-feedback.html.md`, read 2026-11-10. Issue #306.
+# Local-only PR body validation; not a required status check.
+# Adopted from sextant-harness@cc156d07e6d8fda8263a7c1323c641aae65765ac:
+# dangerfile.js (section/source/manifest rules), .github/gate/gate.cjs (author markers).
+# This repository's ci-only policy removes Danger, review routing and the size window.
 set -euo pipefail
-
 body_file="${1:-}"
 if [[ -z "$body_file" ]]; then
   echo "pr-check: pass the PR body file: bash scripts/pr-check.sh <body.md>" >&2
   exit 1
 fi
-repo_root="$(git rev-parse --show-toplevel)"
-if [[ "$body_file" != /* ]]; then
-  body_file="$PWD/$body_file"
-fi
-cd "$repo_root"
+if [[ "$body_file" != /* ]]; then body_file="$PWD/$body_file"; fi
+cd "$(git rev-parse --show-toplevel)"
+python3 - "$body_file" <<'PY'
+import re
+import subprocess
+import sys
+from pathlib import Path
 
-pin="$(node -p 'require("./.devcontainer/agents/package.json").dependencies.danger')"
-danger_path="$(command -v danger || true)"
-if [[ -z "$danger_path" ]]; then
-  echo "pr-check: danger ${pin} is not installed. Install the pinned agent runtimes with:" >&2
-  echo "  bash deploy/wsl/setup.sh" >&2
-  exit 1
-fi
-version="$("$danger_path" --version 2>/dev/null || true)"
-if [[ "$version" != "$pin" ]]; then
-  echo "pr-check: danger ${version:-unknown} is not the repository's pinned ${pin}. Install the pinned agent runtimes with:" >&2
-  echo "  bash deploy/wsl/setup.sh" >&2
-  exit 1
-fi
+try:
+    body = Path(sys.argv[1]).read_text()
+    manifest = subprocess.check_output(["git", "show", "HEAD:docs/manifest.md"], text=True)
+except (OSError, subprocess.CalledProcessError) as exc:
+    sys.exit(f"pr-check: cannot read body or committed manifest: {exc}")
 
-# `danger local` skips the dangerfile when the window is empty, so refuse before the body rules
-# could silently not run. `git push` would refuse an empty branch anyway.
-if [[ "$(git rev-list --count origin/main..HEAD)" -eq 0 ]]; then
-  echo "pr-check: no commits between origin/main and HEAD; nothing to land." >&2
-  exit 1
-fi
 
-LOCAL_PR_BODY_FILE="$body_file" "$danger_path" local \
-  --dangerfile "$repo_root/dangerfile.js" \
-  --base origin/main \
-  --failOnErrors
+def section(name):
+    match = re.search(r"^## " + re.escape(name) + r"\s*$([\s\S]*?)(?=^## |\Z)", body, re.M)
+    return re.sub(r"<!--[\s\S]*?-->", "", match[1]).strip() if match else ""
 
-readonly RAW_DIFF_LIMIT=45000  # `git diff origin/main...HEAD | wc -c`; raised or removed by the PR that closes #305.
-raw_chars="$(git diff origin/main...HEAD | wc -c)"
-raw_chars="${raw_chars//[[:space:]]/}"
-if (( raw_chars > RAW_DIFF_LIMIT )); then
-  echo "pr-check: the review window is ${raw_chars} raw characters, over the ${RAW_DIFF_LIMIT} limit. Split the PR; issue #305 raises or removes the limit in the PR that closes it." >&2
-  exit 1
-fi
-echo "pr-check: the Danger body rules and the ${RAW_DIFF_LIMIT}-character review window pass."
+
+errors = []
+for name in ("What changed", "Manifest row", "Upstream references", "How verified", "How to revert"):
+    if not section(name):
+        errors.append(f'PR body: "{name}" is empty.')
+sources = section("Upstream references")
+repo = r"[\w.-]+/[\w.-]+(?:\]\([^)\s]*\))?@\S*[\s\S]*?\b[0-9a-f]{40}\b"
+docs = r"https?://\S+[\s\S]*?read 20\d\d-\d\d-\d\d"
+paper = r"doi\.org/10\.|\bdoi:10\.|arxiv\.org/abs/|\barXiv:\d"
+if not any(re.search(pattern, sources, re.I if pattern == paper else 0)
+           for pattern in (repo, docs, paper)):
+    errors.append("Upstream references: cite repo@tag and full SHA, docs with read YYYY-MM-DD, or DOI/arXiv.")
+named = re.findall(r'"([^"]+)"', section("Manifest row"))
+rows = [line for line in manifest.splitlines() if not line.startswith("| Practice or pick |")]
+if not any(line.startswith(f"| {name} |") for name in named for line in rows):
+    errors.append('Manifest row: name a committed docs/manifest.md row in "double quotes".')
+markers = re.findall(r"Agent-Family[^\r\n]*", body)
+if len(markers) != 1 or not re.fullmatch(r"Agent-Family (codex|claude|dsh|muse|agy)", markers[0]):
+    errors.append("Agent-Family: use exactly one literal author marker with one ASCII space.")
+if errors:
+    sys.exit("\n".join("pr-check: " + error for error in errors))
+print("pr-check: local upstream references, manifest row and Agent-Family pass.")
+PY

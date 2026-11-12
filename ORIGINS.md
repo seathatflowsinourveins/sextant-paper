@@ -1,3 +1,9 @@
+# Paper adaptation provenance
+
+This repository was created from `seathatflowsinourveins/sextant-harness`, initial paper commit `cc156d07e6d8fda8263a7c1323c641aae65765ac`. The 2026-11-11 adaptation builds on that template for ci-only landing; [ADAPT.md](ADAPT.md) lists the changes and [ADR-0001](docs/adr/0001-sextant-foundation.md) records the decision. The table below is the **historical template inventory**, including removed files, not a claim that adapted files are still byte-identical or that removed workflows remain active. Git records adaptation changes.
+
+No Sextant trading code is included in this adaptation. Later import PRs must name their exact source SHA here after the lead approves the measured closure.
+
 # Origins
 
 Every file in this tree and where it comes from. Source: Sextant, `main` at `3b59f140036a0e5804b6ed0b50ade30919965079` (2026-11-11). **verbatim** means byte-identical to that blob; **generalised** means copied and then changed only as the note says; **new** files describe what is here.
