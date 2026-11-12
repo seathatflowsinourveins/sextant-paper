@@ -532,6 +532,12 @@ def test_stream_callback_does_not_hold_client_on_sdk_thread(monkeypatch):
         def run(self):
             raise AssertionError("offline proof must not start SDK transport")
 
+        async def _dispatch(self, msg):  # The SDK hooks E5 u13 observes, also held weakly.
+            pass
+
+        async def _start_ws(self):
+            pass
+
     stream = Stream()
     monkeypatch.setenv("FIXTURE_KEY", "dummy-key")
     monkeypatch.setenv("FIXTURE_SECRET", "dummy-secret")
