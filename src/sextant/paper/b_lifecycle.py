@@ -394,7 +394,8 @@ class BLifecycle(Strategy):
         allowed = self.candidate(book, now)
         if book.entry is None or self.baseline is None or self.exit is None:
             return
-        book.entry.on_trade(trade, now=now)
+        if not book.entry.on_trade(trade, now=now):
+            return
         book.trades.append((trade.ts_event, trade.price.as_decimal()))  # R_w (exits/engine.py)
         start = trade.ts_event - int(self.exit.prearm_range_window_s * NS)
         while book.trades[0][0] < start:
