@@ -14,7 +14,7 @@ import json
 import math
 import sys
 from collections.abc import Awaitable, Callable
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from contextvars import ContextVar, copy_context
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -25,11 +25,20 @@ from mcp import Client
 from mcp.server import Server
 
 from sextant.execution.state import write_atomic
+from sextant.tradingview.optional_get import (
+    is_optional_get,
+    permits_no_stream,
+    quota_rule,
+    response_error,
+)
+from sextant.tradingview.stop_record import exception_rule, record_request
+from sextant.tradingview.stop_record import refusal_rule as _refused
 
 DEFAULT_PARAMETERS = Path(__file__).resolve().parents[3] / "lanes/tradingview/account.params.json"
 _ACTIVE: ContextVar[Any] = ContextVar("tv_account_transaction", default=None)
 _SHARED: dict[Path, dict] = {}  # State whose flock this process already holds.
 _sleep = asyncio.sleep
+_ORDINAL = 0  # Physical reservations in this process, across account/gate instances.
 
 
 def _utcnow():
@@ -38,6 +47,8 @@ def _utcnow():
 
 class AccountError(ValueError):
     """Fixed local diagnostic; no upstream data."""
+
+    rule: str | None = None
 
 
 def _row(path, name):
@@ -86,6 +97,7 @@ class Account:
         self.parameters = DEFAULT_PARAMETERS
         self.path = canonical_path()
         self.now = now or _utcnow
+        self.ordinal = None
 
     def at(self):
         at = self.now()
@@ -203,6 +215,7 @@ class Account:
         _page()
 
     async def reserve(self, state):
+        global _ORDINAL
         spacing = self.check(state)
         if state["last_call"] is not None:
             delay = (
@@ -218,17 +231,26 @@ class Account:
             last_call=self.at().isoformat(),
         )
         write_atomic(self.path, state)
+        _ORDINAL += 1
+        self.ordinal = _ORDINAL
 
-    async def request(self, send: Callable[[], Awaitable[Any]]):
+    async def request(self, send: Callable[[], Awaitable[Any]], *, method=None):
         with self.locked() as state:
             await self.reserve(state)
             try:
                 result = await send()
-            except BaseException:
+            except BaseException as error:
                 self.roll(state)
                 state["stopped"] = True
-                write_atomic(self.path, state)
-                _page()
+                with suppress(BaseException):  # Reservation already durably latched.
+                    record_request(
+                        self.path,
+                        state,
+                        at=self.at().isoformat(),
+                        ordinal=self.ordinal,
+                        rule=exception_rule(error),
+                        method=method,
+                    )
                 raise
             self.roll(state)
             state.update(stopped=False, quota_stop=False)
@@ -277,32 +299,16 @@ class Account:
             write_atomic(self.path, state)
 
 
-def _refused(value):
-    """MCP isError plus error envelopes; unknown quota text can never permit a probe."""
-    if isinstance(value, dict):
-        if value.get("isError") or value.get("error") or value.get("success") is False:
-            return True
-        text = value.get("text")
-        if isinstance(text, str) and any(word in text.casefold() for word in ("quota", "suspend")):
-            return True
-        # mcp-types 2.3.0 Tool: these fields describe inputs/outputs, not answers.
-        tool = isinstance(value.get("name"), str) and isinstance(value.get("inputSchema"), dict)
-        return any(
-            _refused(item)
-            for key, item in value.items()
-            if not (tool and key in {"inputSchema", "outputSchema"})
-        )
-    return isinstance(value, list) and any(_refused(item) for item in value)
-
-
 class HTTPGate:
     """httpx2 2.16.0 _client.py:1877-1883: guard every physical HTTP request."""
 
-    def __init__(self, known_response=lambda response: False):
+    def __init__(self, known_response=lambda response: False, *, stream_url=None):
         self.known_response = known_response
+        self.stream_url = stream_url
         self.account = Account()
         self.lock = asyncio.Lock()
         self.pending = None
+        self.status = None
 
     def release(self):
         if self.pending is not None:
@@ -315,6 +321,7 @@ class HTTPGate:
     async def request(self, request):
         await self.lock.acquire()
         lease = None
+        self.status = None
         try:
             state = _SHARED.get(self.account.path)
             if state is None:
@@ -343,7 +350,7 @@ class HTTPGate:
                 self.release()
             raise
 
-    def finish(self, accepted, *, request=None, method=None):
+    def finish(self, accepted, *, request=None, method=None, rule=None, error=None):
         if self.pending is None:
             return
         pending_request, state, _, pending_method = self.pending
@@ -354,40 +361,92 @@ class HTTPGate:
         try:
             self.account.roll(state)
             state.update(stopped=not accepted, quota_stop=not accepted)
-            write_atomic(self.account.path, state)
-            if not accepted:
-                _page()
+            if accepted and rule is None and error is None:
+                write_atomic(self.account.path, state)
+            else:
+                with suppress(BaseException):  # Reservation already durably latched.
+                    record_request(
+                        self.account.path,
+                        state,
+                        at=self.account.at().isoformat(),
+                        ordinal=self.account.ordinal,
+                        request=pending_request,
+                        status=self.status,
+                        rule=rule or exception_rule(error or sys.exception()),
+                        action="no_stream" if accepted else "stop",
+                    )
         finally:
             self.release()
+
+    def failure(self, request, error):
+        # SDK :261 catches ordinary stream errors; cancellation still escapes.
+        accepted = (
+            is_optional_get(request, self.stream_url)
+            and isinstance(error, Exception)
+            and permits_no_stream(self.status)
+        )
+        self.finish(accepted, request=request, error=error)
 
     async def response(self, response):
         if self.pending is None or self.pending[0] is not response.request:
             return
-        # SDK v2.3.0 streamable_http.py:224-273,704-705: optional endpoints.
-        if response.status_code == 405 and response.request.method in {"GET", "DELETE"}:
+        self.status = response.status_code
+        # MCP 2.3.0 streamable_http.py:377-378 ignores a 202 body, including
+        # notifications/initialized. Empty other 2xx JSON has nothing to parse.
+        if response.status_code == 202:
             self.finish(True, request=response.request)
             return
-        known = self.known_response(response)
-        if (
-            self.pending[3] is not None
-            and response.status_code < 400
-            and not known
-            and not response.has_redirect_location
+        if 200 <= response.status_code < 300 and "application/json" in response.headers.get(
+            "content-type", ""
         ):
-            return
+            try:
+                await response.aread()
+                if not response.content:
+                    self.finish(True, request=response.request)
+                    return
+                response.json()  # Non-empty malformed JSON remains a refusal, even with an RPC id.
+            except BaseException as error:
+                self.finish(False, request=response.request, error=error)
+                raise
         try:
+            # SDK :224-273 owns retries; only the four named HTTP error statuses
+            # get no-stream handling. Every other HTTP refusal stays latched.
+            if is_optional_get(response.request, self.stream_url) and (
+                no_stream := response_error(response)
+            ):
+                rule = await quota_rule(response)
+                self.finish(not rule, request=response.request, rule=rule or no_stream)
+                if rule:
+                    raise AccountError("HTTP response refused; account stop latched")
+                return
+            # SDK :694-705: retain the existing DELETE and non-stream GET 405 exception.
+            if response.status_code == 405 and response.request.method in {"GET", "DELETE"}:
+                self.finish(True, request=response.request)
+                return
+            known = self.known_response(response)
+            if (
+                self.pending[3] is not None
+                and response.status_code < 400
+                and not known
+                and not response.has_redirect_location
+            ):
+                return
             accepted = known or response.status_code < 400
+            rule = None if accepted else "status"
             if known:
                 await response.aread()
-                accepted = not _refused({"text": response.text})
+                rule = _refused({"text": response.text})
+                accepted = not rule
             elif "application/json" in response.headers.get("content-type", ""):
                 await response.aread()
-                accepted = accepted and not _refused(response.json())
-            self.finish(accepted, request=response.request)
+                if accepted:
+                    rule = _refused(response.json())
+                    accepted = not rule
+            self.finish(accepted, request=response.request, rule=rule)
             if not accepted:
                 raise AccountError("HTTP response refused; account stop latched")
-        except BaseException:
-            self.finish(False, request=response.request)
+        except BaseException as error:
+            self.failure(response.request, error)
             raise
 
 
@@ -398,8 +457,8 @@ class GuardedHTTPTransport(httpx2.AsyncBaseTransport):
     async def handle_async_request(self, request):
         try:
             return await self.upstream.handle_async_request(request)
-        except BaseException:
-            self.gate.finish(False, request=request)
+        except BaseException as error:
+            self.gate.failure(request, error)
             raise
 
     async def aclose(self):
@@ -421,16 +480,18 @@ class MeteredDispatcher:
             result = await self.upstream.send_raw_request(
                 method, params, {**(opts or {}), "cancel_on_abandon": False}
             )
-            if _refused(result):
-                raise AccountError("Official request refused; account stop latched")
+            if rule := _refused(result):
+                error = AccountError("Official request refused; account stop latched")
+                error.rule = rule
+                raise error
             return result
 
         if self.http_gate is None:
-            return await self.account.request(send)
+            return await self.account.request(send, method=method)
         try:
             result = await send()
-        except BaseException:
-            self.http_gate.finish(False, method=method)
+        except BaseException as error:
+            self.http_gate.finish(False, method=method, error=error)
             raise
         self.http_gate.finish(True, method=method)
         return result
@@ -438,7 +499,9 @@ class MeteredDispatcher:
     async def notify(self, method, params, opts=None):
         if self.http_gate is not None:
             return await self.upstream.notify(method, params, opts)
-        return await self.account.request(lambda: self.upstream.notify(method, params, opts))
+        return await self.account.request(
+            lambda: self.upstream.notify(method, params, opts), method=method
+        )
 
 
 class MeteredClient(Client):
