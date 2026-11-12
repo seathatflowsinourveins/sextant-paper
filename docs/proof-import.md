@@ -113,7 +113,6 @@ Baseline: `bbbe7f5e51159c346b28117bff93361439d2e5c9`. Every listed copied file e
 | `tests/proofs/test_ranking_gap_order.py` | `e921732a43d83717bd09eee123df06d8ec9ed78303278f4d5d8b7fc1f2cae2e6` | yes |
 | `tests/proofs/test_ranking_heartbeat.py` | `dd320400d9f34c870c206069f7cbba6ca55c530c7c8db5496503f7d818ab5695` | yes |
 | `tests/proofs/test_ranking_node_host.py` | `fb16e0027f0368a1146834cdbdbf5c96ab1aa1ad49df73eacb44e08735235bb9` | yes |
-| `tests/proofs/test_ranking_node_parameters.py` | `234b3be05b886abdbc6a84ed638c9c48196fdf25d91010951a148d94886baea2` | yes |
 | `tests/proofs/test_ranking_node_rollover.py` | `4d12a41a1eaf4a734ea6816a5924d2d703262817fb7ff8d5c98edaa6b416f2aa` | yes |
 | `tests/proofs/test_ranking_node_session.py` | `e41d6e4f1c46a9658816fc94683e8c8010835598e5f073d97beb0e9f0a59c2ea` | yes |
 | `tests/proofs/test_review_l2_partial.py` | `839ac8e260d05cea921ea51a2086365e79e2a04a5bcaab511422fdb193a33508` | yes |
@@ -125,7 +124,6 @@ Baseline: `bbbe7f5e51159c346b28117bff93361439d2e5c9`. Every listed copied file e
 | `tests/proofs/test_tradingview_bridge.py` | `5d1b9a2ade9b24247bf3add7203c6f3b385630c429c084293ce86203b446cb5d` | yes |
 | `tests/proofs/test_tradingview_display_bounds.py` | `a5d2ab88e2fc0d68fd65414271e8a66d7d0ab0797bc7f44470585d3123960351` | yes |
 | `tests/proofs/test_tradingview_host.py` | `c4b62802755f787d3b6d071a2eb0c06743f8f46b3c0456385c2390ad1463f52a` | yes |
-| `tests/proofs/test_tradingview_listings.py` | `e791cb6ebffc6e5694fbdb0395af6725b438fb4baf12cd9c8fbd76c3d264915f` | yes |
 | `tests/proofs/test_tradingview_loop.py` | `7fc2b942fdf8d76e106abd7c4173bce1800c9966fb7127b7ab01cf35b4072b0d` | yes |
 | `tests/proofs/test_tradingview_prestage.py` | `8f571f8d7bbf0daf3acc8837f630ca2f703af9b0c8dc91b35cc99ad75fdd094c` | yes |
 | `tests/proofs/test_tradingview_prestage_checkpoint.py` | `711699b8d8d010f25201989ae870442727c2459ae108850ab2fb1f19072d8979` | yes |
@@ -136,6 +134,6 @@ Baseline: `bbbe7f5e51159c346b28117bff93361439d2e5c9`. Every listed copied file e
 | `tests/proofs/test_tradingview_producer.py` | `9990551f501c1cedf92f5738fa75f5e6f3f465f5939cdef545d36176fa7024aa` | yes |
 | `tests/proofs/test_tradingview_ranked_view.py` | `13b2c0f175414644668b609f6e75608871fa95788e997dd13e12731531d6b395` | yes |
 
-The effective include inventory grows from 119 to 121 at this baseline: custody/test_b_attended_entry.py and custody/test_b_attended_stop.py are added. D copies 120 effective include files (test_tradingview_units.py belongs to seat E), three additional support files and eight fixture assets, for 131 byte-identical files. All 75 effective outside files are omitted. Eight test nodes are held explicitly in tests/conftest.py; all other imported test bodies remain runnable. No vendored chart library is copied or needed by these selected tests.
+The effective include inventory grows from 119 to 121 at this baseline: custody/test_b_attended_entry.py and custody/test_b_attended_stop.py are added. D copies 118 effective include files; test_tradingview_units.py, test_tradingview_listings.py and test_ranking_node_parameters.py belong to seat E. Three additional support files and eight fixture assets bring D's copied total to 129 byte-identical files. All 75 effective outside files are omitted. Seven test nodes are held explicitly in tests/conftest.py; all other imported test bodies remain runnable. No vendored chart library is copied or needed by these selected tests.
 
-The collection hook follows [pytest collection-time skips](https://docs.pytest.org/en/stable/example/simple.html#control-skipping-of-tests-according-to-command-line-option), read 2026-11-11. Helpers remain importable even when their document assertions are held. The mixed listings file stays with D; its one unit assertion is held for seat E. The baseline owner-thread teardown is unchanged; a later GC-scope fix is not imported.
+The collection hook follows [pytest collection-time skips](https://docs.pytest.org/en/stable/example/simple.html#control-skipping-of-tests-according-to-command-line-option), read 2026-11-11. Helpers remain importable even when their document assertions are held. Both Nasdaq fixtures remain byte-identical; seat E copies the same bytes, allowing identical additions to merge. The baseline owner-thread teardown is unchanged; a later GC-scope fix is not imported.

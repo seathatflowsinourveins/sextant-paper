@@ -31,10 +31,6 @@ HELD_PROOFS = {
         "tests/proofs/test_tradingview_prestage_followups.py::"
         "test_the_3a_arrival_note_is_gone_once_the_loop_ships"
     ): ("HELD: reads Sextant's manifest and excluded TradingView manual"),
-    (
-        "tests/proofs/test_tradingview_listings.py::"
-        "test_the_unit_runs_the_stage_then_restarts_only_a_running_producer"
-    ): ("HELD: mixed-file deployment assertion; seat E owns the listings units"),
 }
 
 
