@@ -30,3 +30,5 @@ Supervision repeats the same start command and admission on every attempt, with 
 Start runtime proof stimuli from observed runtime callbacks and stop after repeated completed polls, keeping native logger lifetime and owner-thread GC; a pre-start wall timer can race the startup custody gate under CPU load. [Native lifecycle sources and slow-start paging proof](../manifest.md).
 
 Honor `EntryState.on_trade` returning False before downstream trade processing or entry submission; a retained ready run cannot make a rejected print an entry trigger. Evidence: LEAD-2218 addendum 1 and the retained R3 regression; [rejection lesson](LESSONS.md#7-a-rejected-print-stops-its-entry-path).
+
+Deduplicate a shared bar subscription only if the other consumer subscribed; an entry auto-subscription opt-out must retain protection-width bars. Evidence: the native shared-width RED/GREEN and lead ruling 2026-11-11 22:51; [subscription lesson](LESSONS.md#8-subscription-opt-out-preserves-other-consumers).

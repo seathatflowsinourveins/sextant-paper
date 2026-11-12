@@ -56,3 +56,15 @@ Evidence: LEAD-2218 addendum 1 and R3's native offline witness, retained in
 `test_b_lifecycle_entry_duplicate.py`; `EntryState.on_trade` retains its boolean
 contract. NautilusTrader `d53849b216e20f2c122ca01b4dd0da377638b186`,
 `crates/trading/src/python/strategy.rs:1214-1217`, dispatches the native callback.
+
+## 8. Subscription opt-out preserves other consumers
+
+Skip a duplicate bar subscription only when the other consumer actually subscribed.
+Turning off entry auto-subscription must retain the independent protection-width
+subscription even when both consumers use the same bar type.
+
+Evidence: the native `test_disabling_entry_subscription_preserves_shared_protection_bars`
+failed with the original flag and passed after restoring the width subscription;
+lead ruling 2026-11-11 22:51. NautilusTrader
+`d53849b216e20f2c122ca01b4dd0da377638b186`,
+`crates/common/src/actor/data_actor.rs:1938-1964`, routes bars through subscriptions.
