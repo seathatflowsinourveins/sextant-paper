@@ -178,6 +178,33 @@ async def _deliver_update(reference, update):
             owner.failures.extend((row, error.with_traceback(None)) for row, error in exc.failures)
 
 
+def _observe(stream, reference, loop):
+    """Report each socket the SDK opens and each subscription the venue confirms.
+
+    alpaca-py sends the listen request without awaiting the venue's acknowledgement, drops it
+    in its dispatcher and reconnects without telling its caller (stream.py:117-126, 141-145,
+    164-168, 204-241); the ack is {"stream": "listening", "data": {"streams":
+    ["trade_updates"]}} (websocket-streaming page, read 2026-11-11). Weak, as the callback.
+    """
+    dispatch, start = stream._dispatch, stream._start_ws
+
+    def notify(kind):
+        if not loop.is_closed():
+            loop.call_soon_threadsafe(lambda: (owner := reference()) and owner._on_stream(kind))
+
+    async def observed_dispatch(msg):
+        if msg.get("stream") == "listening":
+            if "trade_updates" in (msg.get("data") or {}).get("streams", ()):
+                notify("listening")
+        await dispatch(msg)
+
+    async def observed_start():
+        notify("socket")
+        await start()
+
+    stream._dispatch, stream._start_ws = observed_dispatch, observed_start
+
+
 def _run_stream(stream, owner, ready, closing):
     async def run():
         task = asyncio.current_task()
@@ -329,6 +356,10 @@ class AlpacaExecutionClient(ExecutionClient):
         self._stream_task = None
         self._stream_ready = None
         self._closing = Event()
+        self._listening: asyncio.Future | None = None  # The venue's first listen ack.
+        self.stream_live = False  # trade_updates confirmed on the current socket
+        self.stream_restarts = 0  # sockets the SDK replaced after one was lost
+        self.stream_ended = False  # the stream ended while the client was not closing
         self._actions: set[asyncio.Task] = set()
         self._submissions: dict[str, _Command] = {}
         self._commands: set[_Command] = set()
@@ -511,15 +542,50 @@ class AlpacaExecutionClient(ExecutionClient):
 
         self._stream.subscribe_trade_updates(receive)
         self._closing.clear()
-        self._stream_ready = loop.create_future()
-        self._stream_task = self.create_task(
-            asyncio.to_thread(_run_stream, self._stream, loop, self._stream_ready, self._closing),
-            "trade-updates",
-        )
+        self._stream_ready, self._listening = loop.create_future(), loop.create_future()
+        self.stream_live = self.stream_ended = False
+        _observe(self._stream, reference, loop)
+        self._stream_task = self.create_task(self._run_trade_stream(loop), "trade-updates")
+
+    async def _run_trade_stream(self, loop):
+        try:
+            await asyncio.to_thread(
+                _run_stream, self._stream, loop, self._stream_ready, self._closing
+            )
+        finally:
+            if not self._closing.is_set():
+                self.stream_ended = True
+                self._stream_lost("Alpaca trade stream ended unexpectedly")
+
+    def _on_stream(self, kind: str) -> None:
+        if kind == "listening":
+            if self._listening is not None and not self._listening.done():
+                self._listening.set_result(None)
+            elif not self.stream_live:
+                Logger("AlpacaExecution").warning(
+                    "Alpaca trade stream resubscribed; updates in the gap are not read back"
+                )
+            self.stream_live = True
+        elif self.stream_live:  # A new socket: the one the SDK had was lost.
+            self.stream_restarts += 1
+            self._stream_lost("Alpaca trade stream lost; the SDK is reconnecting")
+
+    def _stream_lost(self, reason: str) -> None:
+        """Visible at once, as the official Derive client does (execution.rs:805-807, 842-846)."""
+        self.stream_live = self.coverage_complete = False
+        Logger("AlpacaExecution").error(reason)
+
+    async def _subscribed(self) -> None:
+        """Startup reads follow the venue's confirmation of trade_updates, as Hyperliquid reads
+        history only after it (execution.rs:3114-3120), so nothing between a read and the
+        subscription is lost. The engine's reconciliation timeout bounds the wait; before
+        connect there is no stream to wait for."""
+        if self._listening is not None:
+            await asyncio.shield(self._listening)
 
     async def _disconnect(self):
         # Disconnect never cancels orders or closes positions.
-        self.coverage_complete = False
+        self.coverage_complete = self.stream_live = False
         self._closing.set()
         for token in tuple(self._commands):
             if not token.sent:
@@ -998,6 +1064,7 @@ class AlpacaExecutionClient(ExecutionClient):
 
     @_traced("orders")
     async def _generate_order_status_reports(self, command):
+        await self._subscribed()
         issued = self._now()
         self.coverage_complete = self._orders_complete = False
         self.withheld = []
@@ -1053,6 +1120,7 @@ class AlpacaExecutionClient(ExecutionClient):
 
     @_traced("positions")
     async def _generate_position_status_reports(self, command):
+        await self._subscribed()
         self.coverage_complete = False
         rows = await self._call(ActionKind.QUERY, "get", "/positions")
         reports, failures = [], []
@@ -1109,6 +1177,7 @@ class AlpacaExecutionClient(ExecutionClient):
         fill reads (d53849b architect_ax/execution.rs:1676-1695). A holding no order explains
         still stops the start in the engine (node/mod.rs:992-996).
         """
+        await self._subscribed()
         params = _bounds(command)
         params.pop("symbols", None)  # Activities accepts symbol, singular.
         instrument_id = getattr(command, "instrument_id", None)

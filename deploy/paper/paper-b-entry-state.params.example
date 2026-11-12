@@ -1,0 +1,18 @@
+[
+  {
+    "name": "basis_state_home",
+    "unit": "path",
+    "value": null,
+    "scope": "alpaca-paper-b",
+    "source": "Operator supplies the approved existing non-secret node state home; LEAD-1452 part 4; SegmentBasis src/sextant/entry/sizing.py:17-50 at 7252b0f5c7ccdb416356aaddd9b53fa9a33bd405. No default location is authorized",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "basis_path",
+    "unit": "path",
+    "value": null,
+    "scope": "alpaca-paper-b",
+    "source": "Operator supplies one durable file under basis_state_home, reused for the intended segment across node runs; LEAD-1452 part 4; SegmentBasis src/sextant/entry/sizing.py:17-50 at 7252b0f5c7ccdb416356aaddd9b53fa9a33bd405 binds account/segment/params_hash. No account/key-derived path",
+    "last_change": "2026-11-11"
+  }
+]
