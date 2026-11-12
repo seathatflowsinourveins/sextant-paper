@@ -181,7 +181,8 @@ def load_rows(raw: argparse.Namespace) -> Rows:
     """Every registry through its existing loader; protection needs only the native row."""
     try:
         b = load_b_parameters(raw.b_parameters)
-        node = {row["name"]: row for row in _rows(raw.node_parameters)}
+        node_rows = _rows(raw.node_parameters)
+        node = {row["name"]: row for row in node_rows}
         pacing = _rows(raw.custody_parameters)
         entry_rows, exit_rows = _rows(raw.entry_parameters), _rows(raw.exit_parameters)
         reentry_rows = _rows(raw.reentry_parameters)
@@ -214,7 +215,7 @@ def load_rows(raw: argparse.Namespace) -> Rows:
         f"rows {_unavailable(exit_rows)}"
     )
     steps["reentry"] = f"off: no re-entry part on main; unavailable {_unavailable(reentry_rows)}"
-    commission = [row for row in node.values() if row["name"].startswith("paper_us_equity_")]
+    commission = [row for row in node_rows if row["name"].startswith("paper_us_equity_")]
     poll = int(b.reconcile_interval_s * 1_000_000_000)
     return Rows(b.native_trail_fraction, poll, width, inflight, commission, pacing, entry, steps)
 
