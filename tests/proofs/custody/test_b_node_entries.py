@@ -14,12 +14,13 @@ from test_b_lifecycle_entry import PARAMS, Recording, house, rows, run_entry
 from test_ranking import baseline, publisher
 from test_ranking_consumer import consumer as make_consumer
 
+from sextant.alpaca.config import AlpacaDataClientConfig
 from sextant.paper import node_order, node_rank
 from sextant.paper.b_lifecycle import BLifecycle
 from sextant.ranking import registry
 from sextant.ranking.consumer import RankingConsumer
+from sextant.ranking.node_ranking import RankingArguments, RankingInputs
 
-from .test_b_node_ranking import prepared
 from .test_b_order_node import NUMBER, TIMING, AccountVenue, Stand, argv
 
 GOLDEN = Path(__file__).with_name("b-entries-off-receipt.json")
@@ -32,7 +33,34 @@ def enabled(monkeypatch):
 
 
 def inputs(tmp_path):
-    args = prepared(tmp_path)
+    # Paper's import omits the old node-ranking proof; reuse its shipped input shape
+    # with the ranking fixtures present here. These inputs carry no runtime authority.
+    args = node_order.parse(argv(tmp_path))
+    pub = publisher()
+    ranking = RankingArguments(
+        universe=pub.universe,
+        universe_source=pub.universe_source,
+        baselines={"PRE": pub.baseline},
+        registry=pub.registry,
+        duration_s=args.duration_s,
+        receipt_dir=tmp_path / "ranking",
+        page_window_s=1,
+        status_snapshot_window_s=None,
+        data=AlpacaDataClientConfig(
+            feed=pub.feed,
+            api_key_env=args.api_key_env,
+            api_secret_env=args.api_secret_env,
+        ),
+        inputs=RankingInputs(
+            session=pub.segment.session_date,
+            known_at=pub.segment.start_ns,
+            closes={name: Decimal("0.50") for name in pub.universe},
+            types={name: "common" for name in pub.universe},
+            reference_source="TEST ONLY official-close fixture",
+            asset_source="TEST ONLY vendor fixture",
+        ),
+    )
+    args = replace(args, ranking=ranking)
     assert args.ranking is not None
     args = replace(
         args,
