@@ -911,7 +911,7 @@ def run(
             failure = f"{type(error).__name__}: {error}"
         finally:
             timer.cancel()
-            node.dispose()
+            disposal = dispose(node)
         gate = strategy.gate
         cause = startup_cause(gate.clients)
         outcome = strategy.attended_outcome
@@ -935,10 +935,22 @@ def run(
             refused_sends=gate.refused_sends,
             outside_holdings_paged=len(gate.paged),
             journal=journal,
+            dispose_failure=disposal,
             **({"reconciliation": cause} if cause else {}),
             **outcome,
         )
-        return receipt, 0 if phase == "stopped" else 2
+        return receipt, 0 if phase == "stopped" and disposal is None else 2
+
+
+def dispose(node: Any) -> str | None:
+    """rc8 disposes the kernel, then raises a Python client's finalization error to the caller
+    (``crates/live/src/python/node.rs:1207-1228``, ``client/mod.rs:1020-1066``). It is kept as
+    text, so the terminal receipt is still written and no traceback holds the node."""
+    try:
+        node.dispose()
+    except Exception as error:
+        return f"{type(error).__name__}: {error}"
+    return None
 
 
 def startup_cause(clients: list[Any]) -> dict[str, Any] | None:

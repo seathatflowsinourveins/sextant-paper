@@ -819,3 +819,46 @@ def test_incomplete_unit_parameters_cannot_start_a_node(tmp_path, monkeypatch, r
     assert not list(tmp_path.rglob("*.lock"))
     body = json.loads((tmp_path / "receipts" / node_order.RECEIPT).read_text())
     assert (body["phase"], body["reason"]) == ("refused", root.removeprefix("B_").lower())
+
+
+# N3 part 5: a disposal that raises after the run still leaves the terminal receipt (review
+# nodeN3r3-ddf939a P2). rc8 disposes the kernel first and then raises a Python client's
+# finalization error (crates/live/src/python/node.rs:1207-1228); the proxy does the same.
+
+
+class _DisposeRaises:
+    def __init__(self, node: Any, run_fails: bool) -> None:
+        self.node, self.run_fails = node, run_fails
+
+    def handle(self) -> Any:
+        return self.node.handle()
+
+    def run(self) -> None:
+        if self.run_fails:
+            raise RuntimeError("fixture: original run failure")
+        self.node.run()
+
+    def dispose(self) -> None:
+        self.node.dispose()
+        raise ValueError("fixture: client finalization failed")
+
+
+@pytest.mark.parametrize(
+    ("run_fails", "phase", "reason"),
+    [(False, "stopped", None), (True, "failed", "RuntimeError: fixture: original run failure")],
+)
+def test_a_disposal_failure_keeps_the_terminal_receipt_and_names_it(
+    tmp_path, monkeypatch, run_fails, phase, reason
+) -> None:
+    built = node_order.build
+
+    def build(*args: Any, **kwargs: Any) -> Any:
+        node, strategy = built(*args, **kwargs)
+        return _DisposeRaises(node, run_fails), strategy
+
+    monkeypatch.setattr(node_order, "build", build)
+    body, code, _ = start(tmp_path)
+    assert (code, body["phase"], body["reason"]) == (2, phase, reason)
+    assert body["dispose_failure"] == "ValueError: fixture: client finalization failed"
+    free(tmp_path / "locks", SCOPE)
+    free(tmp_path / "leases", MARKET)
