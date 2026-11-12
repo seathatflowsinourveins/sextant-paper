@@ -2,14 +2,15 @@
 
 SOURCE_LINE_CAP is the lead's uncalibrated starting cap: 25,000 (LEAD-1915,
 2026-11-11), raised to 25,300 for the remaining reviewed chain links
-(LEAD-2046-addendum-2); it ratchets down after the chain lands and the
-move-only splits. See docs/landscape.md and docs/import-evidence.md.
+(LEAD-2046-addendum-2). G3's LEAD-2259 build brief sets measured total + 100:
+24,984 raw lines + 100 = 25,084, within the 26,500 hard ceiling.
+See docs/landscape.md and docs/import-evidence.md.
 """
 
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
-SOURCE_LINE_CAP = 25_300
+SOURCE_LINE_CAP = 25_084
 
 
 def _lines(path: Path) -> int:

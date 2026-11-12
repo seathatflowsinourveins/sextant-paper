@@ -33,4 +33,6 @@ Honor `EntryState.on_trade` returning False before downstream trade processing o
 
 Deduplicate a shared bar subscription only if the other consumer subscribed; an entry auto-subscription opt-out must retain protection-width bars. Evidence: the native shared-width RED/GREEN and lead ruling 2026-11-11 22:51; [subscription lesson](LESSONS.md#8-subscription-opt-out-preserves-other-consumers).
 
+Load optional entry dependencies during normal row admission, independently of explicit state-path admission. Missing authority stays missing for entries while protection and attended starts retain their own gates. Prove the loader-to-composer path without injecting the dependencies it must load. [Normal-loading lesson](LESSONS.md#10-prove-normal-loading-through-composition).
+
 Start admission walks replacement links across cached and withheld reconciliation rows, with one count per working endpoint. Preserve venue links omitted by native reports as read-only evidence; terminal ancestors never hide a working successor or falsely refuse a fully terminal chain. Keep owner mutation authority separate. [Reconciliation lesson and pinned sources](LESSONS.md#7-admission-walks-both-sides-of-reconciliation).

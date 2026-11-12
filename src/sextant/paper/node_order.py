@@ -211,14 +211,35 @@ def load_rows(raw: argparse.Namespace) -> Rows:
         steps["entry"] = "rows available; the rank gate row is off (ranking/registry.py:50)"
     except (ValueError, KeyError, TypeError) as error:
         steps["entry"] = f"off: {error}"
-    steps["gain_lock"] = (
-        "off: no loader reads B's own exit file into ExitParams (LEAD-0310 6); unavailable "
-        f"rows {_unavailable(exit_rows)}"
-    )
+    exit_params = None
+    try:
+        exit_params = load_exit_params(exit_rows)
+        steps["gain_lock"] = (
+            "off: round_trip_cost and exit chase UNAVAILABLE; "
+            "B ExitParams loaded for entry buffer only"
+        )
+    except (ValueError, KeyError, TypeError) as error:
+        steps["gain_lock"] = f"off: entry buffer unavailable: {error}; exit chase remains off"
     steps["reentry"] = f"off: no re-entry part on main; unavailable {_unavailable(reentry_rows)}"
     commission = [row for row in node_rows if row["name"].startswith("paper_us_equity_")]
+    commission_rate = None
+    try:
+        commission_rate = sizing_commission_rate(commission)
+    except (ValueError, KeyError, TypeError) as error:
+        steps["entry"] += f"; commission_rate unavailable: {error}"
     poll = int(b.reconcile_interval_s * 1_000_000_000)
-    return Rows(b.native_trail_fraction, poll, width, inflight, commission, pacing, entry, steps)
+    return Rows(
+        b.native_trail_fraction,
+        poll,
+        width,
+        inflight,
+        commission,
+        pacing,
+        entry,
+        steps,
+        exit=exit_params,
+        commission_rate=commission_rate,
+    )
 
 
 def read_universe(path: Path) -> tuple[tuple[InstrumentId, ...], str]:
@@ -311,24 +332,10 @@ def parse(argv: list[str] | None = None) -> OrderArguments:
     rows = load_rows(raw)
     basis_path = None
     if raw.entry_state_parameters is not None:
-        loaded = {}
-        for name, loader, path in (
-            ("exit_params", lambda p: load_exit_params(_rows(p)), raw.exit_parameters),
-            ("commission_rate", lambda p: sizing_commission_rate(_rows(p)), raw.node_parameters),
-            ("basis_path", load_basis_path, raw.entry_state_parameters),
-        ):
-            try:
-                loaded[name] = loader(path)
-            except (OSError, ValueError, TypeError, KeyError) as error:
-                raise OrderModeRefused(name, str(error)) from error
-        basis_path = loaded["basis_path"]
-        steps = rows.steps | {
-            "gain_lock": "off: round_trip_cost and exit chase UNAVAILABLE; "
-            "B ExitParams loaded for entry buffer only"
-        }
-        rows = replace(
-            rows, exit=loaded["exit_params"], commission_rate=loaded["commission_rate"], steps=steps
-        )
+        try:
+            basis_path = load_basis_path(raw.entry_state_parameters)
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            raise OrderModeRefused("basis_path", str(error)) from error
     try:
         ranking = node_rank.load(raw)
     except (ValueError, OSError, KeyError, TypeError) as error:

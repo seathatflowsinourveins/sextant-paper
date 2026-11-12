@@ -1,4 +1,4 @@
-"""Part 6: real entry configuration/replay; gate off retains b202fead receipt bytes."""
+"""Part 6/G3: loaded entry dependencies reach native replay; gate off stays protection-only."""
 
 import importlib
 import importlib.util
@@ -32,10 +32,10 @@ def enabled(monkeypatch):
     monkeypatch.setattr(node_order, "RANK_GATE_ENABLED", gate)
 
 
-def inputs(tmp_path):
+def inputs(tmp_path, *, unavailable=None):
     # Paper's import omits the old node-ranking proof; reuse its shipped input shape
     # with the ranking fixtures present here. These inputs carry no runtime authority.
-    args = node_order.parse(argv(tmp_path))
+    args = node_order.parse(dependency_argv(tmp_path, unavailable=unavailable))
     pub = publisher()
     ranking = RankingArguments(
         universe=pub.universe,
@@ -68,13 +68,36 @@ def inputs(tmp_path):
         rows=replace(
             args.rows,
             entry=PARAMS,
-            exit=__import__("test_b_lifecycle_entry").EXIT,
-            commission_rate=Decimal(0),
         ),
         basis_path=tmp_path / "basis.json",
         ranking=replace(args.ranking, baselines={"PRE": baseline()}),
     )
     return args
+
+
+def dependency_argv(tmp_path, *, unavailable=None):
+    parts = argv(tmp_path)
+    if unavailable is not None:
+        flag, name = {
+            "exit": ("--exit-parameters", "prearm_buffer_fraction"),
+            "commission_rate": ("--node-parameters", "paper_us_equity_commission_per_fill"),
+        }[unavailable]
+        path = Path(parts[parts.index(flag) + 1])
+        data = json.loads(path.read_text())
+        data = [
+            r | {"value": None, "calibration_state": "UNAVAILABLE"} if r["name"] == name else r
+            for r in data
+        ]
+        altered = tmp_path / "unavailable.json"
+        altered.write_text(json.dumps(data))
+        parts[parts.index(flag) + 1] = str(altered)
+    return parts
+
+
+@pytest.mark.parametrize("name", ["exit", "commission_rate"])
+def test_normal_loader_supplies_the_entry_dependency(tmp_path, name):
+    args = node_order.parse(argv(tmp_path))
+    assert getattr(args.rows, name) is not None, f"G3 normal load_rows leaves {name} unset"
 
 
 def loader():
@@ -94,6 +117,67 @@ def test_enabled_node_composition_supplies_the_consumers_segment_baseline(tmp_pa
     assert strategy.baseline is args.ranking.baselines["PRE"]
     assert strategy.params is PARAMS
     assert strategy.commission == Decimal(0) and strategy.basis_path == tmp_path / "basis.json"
+    assert strategy.exit is not None and strategy.exit is args.rows.exit
+    assert strategy.exit.chase_on is False
+
+
+@pytest.mark.parametrize("name", ["exit", "commission_rate"])
+def test_unavailable_registry_dependency_still_refuses_native_entries(tmp_path, monkeypatch, name):
+    enabled(monkeypatch)
+    args = inputs(tmp_path, unavailable=name)
+    missing = "exit_params" if name == "exit" else name
+
+    class Composed(Recording):
+        def __init__(self, original):
+            super().__init__(
+                node_order.strategy_config(
+                    args, consumer=original.consumer, journal=original.journal
+                )
+            )
+
+    journal, orders, strategy = run_entry(tmp_path / "replay", cls=Composed)
+    assert strategy.missing == [missing]
+    assert [r["missing"] for r in journal if r["kind"] == "entry_refused"] == [[missing]]
+    assert house(orders) == [] and strategy.sent == []
+
+
+@pytest.mark.parametrize("name", ["exit", "commission_rate"])
+def test_unavailable_registry_dependency_allows_protection_start(tmp_path, monkeypatch, name):
+    monkeypatch.setenv(node_order.EXPECTED_FULL_ENV, NUMBER)
+    args = replace(node_order.parse(dependency_argv(tmp_path, unavailable=name)), duration_s=1)
+    stand = Stand(AccountVenue())
+    path, code = node_order.run(
+        args,
+        consumer=None,
+        leases=node_order.take_leases,
+        data_factory=stand.data,
+        exec_factory=stand.exec,
+        timing=TIMING,
+    )
+    body = json.loads(path.read_text())
+    assert code == 0 and body["phase"] == "stopped" and body["reason"] is None
+    assert stand.connected == 1 and all(r[0] == "GET" for r in stand.venue.requests)
+    assert ("exit_params" if name == "exit" else name) in body["steps"]["entry"]
+
+
+@pytest.mark.parametrize("name", ["exit", "commission_rate"])
+def test_unavailable_registry_dependency_allows_attended_entry(tmp_path, monkeypatch, name):
+    from . import test_b_attended_entry as attended
+
+    monkeypatch.setenv(node_order.EXPECTED_FULL_ENV, NUMBER)
+
+    def opted(path):
+        # Alter only the registry input, preserving the existing attended fixture's intent.
+        parts = dependency_argv(path, unavailable=name)
+        return replace(
+            node_order.parse([*parts, "--attended-test-entry", str(attended.IID)]), duration_s=1
+        )
+
+    monkeypatch.setattr(attended, "opted", opted)
+    venue, strategy = attended.exercise(tmp_path, monkeypatch, outcome="filled")
+    assert strategy.attended_attempted
+    assert ("exit_params" if name == "exit" else name) in strategy.missing
+    assert len([r for r in venue.rows.values() if r["type"] == "trailing_stop"]) == 1
 
 
 def test_an_inconsistent_surge_baseline_refuses_the_configuration(tmp_path, monkeypatch):
