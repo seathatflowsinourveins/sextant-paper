@@ -26,7 +26,7 @@ from alpaca.trading.models import Order, Position
 from alpaca.trading.stream import TradingStream
 from nautilus_trader.common import Logger
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_iso8601
-from nautilus_trader.live import LiveExecutionEngineConfig
+from nautilus_trader.live import LiveExecutionEngineConfig, SubmissionRecoveryPolicy
 from nautilus_trader.live.clients import ExecutionClient
 from nautilus_trader.model import (
     AccountBalance,
@@ -142,6 +142,23 @@ def execution_engine_config(*, universe, **kwargs) -> LiveExecutionEngineConfig:
         # E5 u9: a holding older than a window would be unexplained and abort startup;
         # the paged listing reads the whole history instead (node_config.rs:442-443).
         raise ValueError("reconciliation lookback must stay unbounded")
+    # An unacknowledged submission may be live: the engine retains it rather than rejecting
+    # it when its recovery queries run out (submission.rs:45-50). The per-client switch
+    # (common clients/execution.rs:120) has no Python binding at the pin.
+    retain = SubmissionRecoveryPolicy.RETAIN_UNRESOLVED
+    if kwargs.setdefault("submission_recovery_policy", retain) != retain:
+        raise ValueError("submission recovery must retain unresolved orders")
+    # NT d53849b manager.rs:1935-1939 cancels pending mutations on in-flight timeout,
+    # even when their outcome is unknown. Use its open-order reconciliation instead:
+    # failed clients retain coverage gaps (2430-2472), and missing pending mutations
+    # are deferred (3614-3642). node/mod.rs:1430-1466 selects these native loops.
+    # Reuse the caller's cadence (or the engine default), without a new timing value.
+    interval = LiveExecutionEngineConfig(**kwargs).inflight_check_interval_ms
+    kwargs["inflight_check_interval_ms"] = 0
+    if interval:
+        cadence = kwargs.setdefault("open_check_interval_secs", interval / 1000)
+        if cadence is None or not 0 < cadence < float("inf"):
+            raise ValueError("open-order reconciliation must replace in-flight checking")
     return LiveExecutionEngineConfig(
         generate_missing_orders=False,
         filter_position_reports=False,
@@ -200,7 +217,7 @@ class _Command:
 
     ``sent`` is set only by ``_mark_sent``, the gateway's on-wire hook, before the request
     leaves; that is the one place on-wire evidence is recorded. Afterwards only an
-    authoritative answer resolves it: the venue's response, a venue 4xx, or a later read.
+    authoritative answer resolves it: the venue's response, a documented refusal or a read.
     """
 
     kind: str
@@ -260,8 +277,23 @@ def _merge_listings(*listings) -> list:
     return [*keyed.values(), *loose]
 
 
+# The broker's documented refusals after send (reference pages, read 2026-11-11): POST
+# /v2/orders 403 and 422, DELETE /v2/orders/{order_id} 422; PATCH documents only 200. Any
+# other answer is ambiguous (engine failure.rs:28-42): the order may be live, so it is never
+# rejected locally; a POST's 429 too, as Coinbase's (execution.rs:1473-1478), since the
+# engine retains an unanswered submission (manager.rs:421-460). A PATCH's or DELETE's 429 is
+# a refusal, as Bybit's (execution.rs:2389-2411): the engine keeps no pending mutation and
+# cancels it once its queries run out (manager.rs:1935-1939), which our 429 pause makes
+# likely; alpaca-py itself resends after a 429 (rest.py:198-204), as not processed.
+_REFUSALS = {
+    "submit": frozenset({403, 422}),
+    "cancel": frozenset({422, 429}),
+    "modify": frozenset({429}),
+}
+
+
 def _unresolved(exc, token) -> bool:
-    """After send, only a venue 4xx refusal resolves a command locally.
+    """After send, only a documented venue refusal resolves a command locally.
 
     alpaca-py rest.py:197-210 raises APIError for 4xx/5xx and returns
     response.json() on 2xx (requests' JSONDecodeError, a ValueError); the session
@@ -272,7 +304,7 @@ def _unresolved(exc, token) -> bool:
     if not token.sent:
         return False
     status = exc.status_code if isinstance(exc, APIError) else None
-    return not (status is not None and 400 <= status < 500)
+    return status not in _REFUSALS[token.kind]
 
 
 class AlpacaExecutionClient(ExecutionClient):
@@ -631,7 +663,7 @@ class AlpacaExecutionClient(ExecutionClient):
 
         Alpaca: replaced is terminal and pending_replace still waits; any other status
         proves no replacement pending, so a lost PATCH reply cannot block later modifies.
-        NT manager.rs check_inflight_orders likewise resolves PENDING_UPDATE by query.
+        NT manager.rs:3614-3642 defers unresolved pending mutations during recovery.
         """
         if row["status"] in ("pending_replace", "pending_cancel"):
             return
@@ -642,8 +674,7 @@ class AlpacaExecutionClient(ExecutionClient):
         cancel_lost = self._resolve(row["id"], issued=issued)
         if applied:
             return  # Applied: the successor binding updates the engine.
-        # Unchanged at the venue: the engine closes a PENDING_UPDATE or PENDING_CANCEL
-        # order after its retries (manager.rs:1935-1939), so restore it first.
+        # Unchanged at the venue: this authoritative read answers the pending mutation.
         now, venue_id = self.clock.timestamp_ns(), VenueOrderId(row["id"])
         for root in dropped:
             native = self.cache.order(ClientOrderId(root))
@@ -967,6 +998,7 @@ class AlpacaExecutionClient(ExecutionClient):
 
     @_traced("orders")
     async def _generate_order_status_reports(self, command):
+        issued = self._now()
         self.coverage_complete = self._orders_complete = False
         self.withheld = []
         try:
@@ -977,8 +1009,9 @@ class AlpacaExecutionClient(ExecutionClient):
                     **_bounds(command),
                 }
             )
-            if not command.open_only and getattr(command, "start", None) is not None:
-                # A submission-time window cannot cover older still-working orders.
+            if getattr(command, "start", None) is not None:
+                # A submission-time window cannot cover older still-working orders,
+                # including the native open-check's default lookback (config.rs:506).
                 opened = await self._list_orders({"status": "open", "nested": True})
                 rows = _merge_listings(rows, opened)
         except IncompleteCoverage as exc:
@@ -995,6 +1028,7 @@ class AlpacaExecutionClient(ExecutionClient):
                     self.withheld.append((row, reason))
                     continue
                 report = await self._report(row)
+                self._settle(row, issued)
                 if report is not None:
                     reports.append(report)
             except Exception as exc:

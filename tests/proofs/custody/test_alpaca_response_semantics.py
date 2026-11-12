@@ -81,12 +81,9 @@ def test_patch_response_classes(cls):
         try:
             await node._modify_order(_cmd("modify"))
         except Exception:
-            assert cls in ("5xx", "none")
-        if cls == "4xx":
-            node.generate_order_modify_rejected.assert_called_once()
-            assert not node._proposals
-            return
-        # 2xx is a proposal, not a replacement; 5xx/none are unknown: the proposal stays.
+            assert cls in ("4xx", "5xx", "none")
+        # 2xx is a proposal, not a replacement; the broker documents no PATCH refusal, so a
+        # 4xx (E5 u12), a 5xx or no answer is unknown: the proposal stays.
         assert list(node._proposals) == ["fixture-entry-r1"]
         node.generate_order_modify_rejected.assert_not_called()
         if cls == "2xx":  # Resolved only by the venue: here its replace refusal.
