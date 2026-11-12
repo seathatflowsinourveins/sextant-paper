@@ -84,3 +84,26 @@ and report shapes: NautilusTrader `d53849b216e20f2c122ca01b4dd0da377638b186`,
 `python/nautilus_trader/model/__init__.pyi:4862-4901`; venue links and replacement
 client-id semantics: alpaca-py `cc4cb3b7ba50ae250e621983c2779047fb16bb28`,
 `alpaca/trading/models.py:223-224`, `requests.py:300`.
+
+## 10. Prove normal loading through composition
+
+A composition proof that injects its dependencies cannot detect a missing loader.
+Load entry-buffer exit rows and the representable sizing fee rate during normal row
+admission; keep basis-path admission explicit. Validate each dependency independently:
+missing authority refuses ordinary entries without becoming a new startup gate for
+protection or the separately attended test intent. Loading buffer inputs never enables
+gain-lock or exit chase.
+
+Decimal conversion and cent-rounding can raise `decimal.InvalidOperation` rather
+than `ValueError`. Optional dependency admission must catch that exact validator
+exception too, leaving ordinary entries refused while startup remains admitted.
+
+Evidence: LEAD-2259, 2026-11-11; the two G3 normal-loader assertions failed before
+the fix. `custody/test_b_node_entries.py` now carries those inputs from the loader
+through composition to the native entry replay, plus unavailable-row startup proofs.
+Build on the existing validators at sextant-paper
+`438c90a409620132c38a6a864f0a53cfb315ddc9`,
+`src/sextant/paper/b_entry_dependencies.py:57-84`.
+The G3 exact-head review at `52fb96c2f2aa1285d4ffc7f5bac196230f31c497`
+reproduced this trap for malformed exit rows; fix-round witnesses also cover the
+sizing-fee rounding trap and both native startup modes.

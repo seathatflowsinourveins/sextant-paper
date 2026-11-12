@@ -43,7 +43,7 @@ import time
 from collections.abc import Callable, Mapping
 from contextlib import ExitStack, suppress
 from dataclasses import dataclass, field, replace
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -93,6 +93,7 @@ from sextant.paper.b_protector_main import (
 )
 from sextant.paper.config import PaperAccount
 from sextant.paper.decision_record import DecisionLog, Row
+from sextant.paper.node_entries import strategy_config
 from sextant.paper.sessions import Session, session_at
 from sextant.ranking import node_ranking
 from sextant.ranking.consumer import RankingConsumer
@@ -210,14 +211,35 @@ def load_rows(raw: argparse.Namespace) -> Rows:
         steps["entry"] = "rows available; the rank gate row is off (ranking/registry.py:50)"
     except (ValueError, KeyError, TypeError) as error:
         steps["entry"] = f"off: {error}"
-    steps["gain_lock"] = (
-        "off: no loader reads B's own exit file into ExitParams (LEAD-0310 6); unavailable "
-        f"rows {_unavailable(exit_rows)}"
-    )
+    exit_params = None
+    try:
+        exit_params = load_exit_params(exit_rows)
+        steps["gain_lock"] = (
+            "off: round_trip_cost and exit chase UNAVAILABLE; "
+            "B ExitParams loaded for entry buffer only"
+        )
+    except (ValueError, KeyError, TypeError, InvalidOperation) as error:
+        steps["gain_lock"] = f"off: entry buffer unavailable: {error}; exit chase remains off"
     steps["reentry"] = f"off: no re-entry part on main; unavailable {_unavailable(reentry_rows)}"
     commission = [row for row in node_rows if row["name"].startswith("paper_us_equity_")]
+    commission_rate = None
+    try:
+        commission_rate = sizing_commission_rate(commission)
+    except (ValueError, KeyError, TypeError, InvalidOperation) as error:
+        steps["entry"] += f"; commission_rate unavailable: {error}"
     poll = int(b.reconcile_interval_s * 1_000_000_000)
-    return Rows(b.native_trail_fraction, poll, width, inflight, commission, pacing, entry, steps)
+    return Rows(
+        b.native_trail_fraction,
+        poll,
+        width,
+        inflight,
+        commission,
+        pacing,
+        entry,
+        steps,
+        exit=exit_params,
+        commission_rate=commission_rate,
+    )
 
 
 def read_universe(path: Path) -> tuple[tuple[InstrumentId, ...], str]:
@@ -310,24 +332,10 @@ def parse(argv: list[str] | None = None) -> OrderArguments:
     rows = load_rows(raw)
     basis_path = None
     if raw.entry_state_parameters is not None:
-        loaded = {}
-        for name, loader, path in (
-            ("exit_params", lambda p: load_exit_params(_rows(p)), raw.exit_parameters),
-            ("commission_rate", lambda p: sizing_commission_rate(_rows(p)), raw.node_parameters),
-            ("basis_path", load_basis_path, raw.entry_state_parameters),
-        ):
-            try:
-                loaded[name] = loader(path)
-            except (OSError, ValueError, TypeError, KeyError) as error:
-                raise OrderModeRefused(name, str(error)) from error
-        basis_path = loaded["basis_path"]
-        steps = rows.steps | {
-            "gain_lock": "off: round_trip_cost and exit chase UNAVAILABLE; "
-            "B ExitParams loaded for entry buffer only"
-        }
-        rows = replace(
-            rows, exit=loaded["exit_params"], commission_rate=loaded["commission_rate"], steps=steps
-        )
+        try:
+            basis_path = load_basis_path(raw.entry_state_parameters)
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            raise OrderModeRefused("basis_path", str(error)) from error
     try:
         ranking = node_rank.load(raw)
     except (ValueError, OSError, KeyError, TypeError) as error:
@@ -706,24 +714,6 @@ def journal_into(log: DecisionLog) -> Journal:
     return lambda row: log.append(Row(row))
 
 
-def strategy_config(
-    args: OrderArguments, *, consumer: RankingConsumer | None, journal: Journal | None
-) -> BLifecycleConfig:
-    return BLifecycleConfig(
-        namespace=args.account.namespace,
-        instrument_ids=args.universe,
-        consumer=consumer,
-        rank_gate=RANK_GATE_ENABLED,
-        journal=journal,
-        entry_params=args.rows.entry,
-        exit_params=args.rows.exit,
-        commission_rate=args.rows.commission_rate,
-        basis_path=args.basis_path,
-        native_trail_fraction=args.rows.native,
-        width_rows=args.rows.width,
-    )
-
-
 def build(
     args: OrderArguments,
     *,
@@ -854,7 +844,11 @@ def run(
     # The Strategy takes no consumer only while the rank gate row is False (P2's
     # BLifecycleConfig refuses any other pair); with it off, B protects and no rank is read.
     # Only the bool False counts as off here, so a 0 or a missing value refuses.
-    if consumer is None and RANK_GATE_ENABLED.value is not False:  # before any lease
+    if (
+        consumer is None
+        and RANK_GATE_ENABLED.value is not False
+        and not (RANK_GATE_ENABLED.value is True and args.ranking is not None)
+    ):  # before any lease; build owns the optional in-node consumer
         detail = "the rank gate row is on and no RankingConsumer exists (ranking/registry.py:50)"
         return write_receipt(args, "refused", reason="ranking_consumer", detail=detail), 2
     if not (os.environ.get(EXPECTED_FULL_ENV) or os.environ.get(EXPECTED_SUFFIX_ENV)):

@@ -241,12 +241,13 @@ def test_node_opt_in_maps_the_three_dependencies_and_entry_chase_stays_separate(
     assert "round_trip_cost" in args.rows.steps["gain_lock"]
 
 
-def test_node_default_path_keeps_all_three_dependencies_missing(tmp_path):
+def test_node_default_path_loads_rows_but_never_invents_a_basis_path(tmp_path):
     args = node_order.parse(argv(tmp_path))
     args = replace(args, universe=(__import__("test_b_lifecycle").PENNY,))
     config = node_order.strategy_config(args, consumer=None, journal=None)
-    assert config.exit_params is config.commission_rate is config.basis_path is None
-    assert {"exit_params", "commission_rate", "basis_path"} <= set(BLifecycle(config).missing)
+    assert config.exit_params is not None and config.commission_rate == D(0)
+    assert config.basis_path is None
+    assert BLifecycle(config).missing == ["ranking_consumer", "basis_path", "baseline"]
     assert not (tmp_path / "state").exists()
 
 
@@ -304,7 +305,7 @@ def test_mapped_dependencies_reach_the_native_entry_and_durable_basis(tmp_path):
 
 
 @pytest.mark.parametrize("dependency", ["exit_params", "commission_rate", "basis_path"])
-def test_node_refuses_a_supplied_dependency_without_source(tmp_path, dependency):
+def test_state_path_never_supplies_missing_row_authority(tmp_path, dependency):
     file, rows = state_file(tmp_path)
     cli = [*argv(tmp_path), "--entry-state-parameters", str(file)]
     if dependency == "basis_path":
@@ -322,10 +323,18 @@ def test_node_refuses_a_supplied_dependency_without_source(tmp_path, dependency)
         altered.write_text(json.dumps(rows))
         flag = "--exit-parameters" if dependency == "exit_params" else "--node-parameters"
         cli[cli.index(flag) + 1] = str(altered)
-    with pytest.raises(node_order.OrderModeRefused) as error:
-        node_order.parse(cli)
-    assert error.value.reason == dependency
-    assert "source" in error.value.detail
+    if dependency == "basis_path":
+        with pytest.raises(node_order.OrderModeRefused) as error:
+            node_order.parse(cli)
+        assert error.value.reason == dependency and "source" in error.value.detail
+    else:
+        args = node_order.parse(cli)
+        args = replace(args, universe=(__import__("test_b_lifecycle").PENNY,))
+        config = node_order.strategy_config(args, consumer=None, journal=None)
+        assert getattr(config, dependency) is None
+        assert dependency in BLifecycle(config).missing
+        assert "source" in args.rows.steps["gain_lock" if dependency == "exit_params" else "entry"]
+        assert args.basis_path == tmp_path / "state/basis.json"
 
 
 @pytest.mark.parametrize("extra", [0, 1])

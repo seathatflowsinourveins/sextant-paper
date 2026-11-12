@@ -45,7 +45,7 @@ from sextant.alpaca.factories import AlpacaExecutionClientFactory
 from sextant.alpaca.wire import AccountGateway
 from sextant.execution.custody import AccountScope, CustodyError, WriterLease
 from sextant.execution.pacer import AccountPacer
-from sextant.paper import node_order
+from sextant.paper import node_entries, node_order
 from sextant.paper.b_protector_main import EXPECTED_FULL_ENV, EXPECTED_SUFFIX_ENV
 from sextant.paper.decision_record import DecisionLog
 from sextant.ranking.registry import RANK_GATE_ENABLED
@@ -720,7 +720,7 @@ def test_an_exception_from_build_writes_a_failed_receipt_and_releases_the_leases
     def broken(**_kwargs):
         raise ValueError("fixture: the Strategy config refused")
 
-    monkeypatch.setattr(node_order, "BLifecycleConfig", broken)
+    monkeypatch.setattr(node_entries, "BLifecycleConfig", broken)
     body, code, stand = start(tmp_path)
     assert (code, body["phase"], body["reason"]) == (2, "failed", "ValueError")
     assert "fixture: the Strategy config refused" in body["detail"] and stand.connected == 0
