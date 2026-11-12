@@ -1,6 +1,0 @@
-{
-  "environments": [
-    { "name": "review", "branches": ["main"] },
-    { "name": "hosted-workers", "branches": ["main"] }
-  ]
-}

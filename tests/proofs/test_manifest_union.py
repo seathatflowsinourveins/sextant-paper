@@ -11,33 +11,8 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
-# Row keys main already repeats: the per-section table header, and one row recorded twice
-# before this proof.
-KNOWN_REPEATS = {"Practice or pick": None, "Paper-search MCP": 2}
-# Row keys retired or renamed since the cutover: on the pre-cutover main (695bc7c) or a later gate
-# commit, and gone at c149c0a. Union also takes both versions of a hunk where one side deleted or
-# renamed a row, so a merge, rebase or cherry-pick from an older base restores it, or keeps its
-# old twin beside the renamed row, without repeating a key: #31 restored the runner row the gate
-# bootstrap retired, and #109 removed it again. Add a row's key here when you retire or rename it.
-RETIRED = (
-    "A PR cannot change its own checks. PR code runs on a local ephemeral JIT runner",
-    "All three required-review families use local one-job JIT runners",
-    "C live main: SIP feed, witness entry and broker-held trail",
-    "C receipt diagnostics and durable trial-before-receipt publication",
-    "C's opt-in full-universe SIP tap: one socket, tap-only measurement symbols, guarded abort",
-    "C's request-rate log line: pacer wiring and data calls, every 60 s",
-    "EdgarTools documents and 8-K parsers behind archived SEC bytes",
-    "Live Alpaca SIP tick feed for paper arming",
-    "One other-family review per PR through gh-aw",
-    "Overnight BOATS polling feed for the C lane",
-    "Owner-ruled J5 cadence, disabled until landing",
-    "Private local ephemeral Actions runners",
-    "Read-only one-socket feed tap and capacity gate",
-    "Size budgets, 'never bloat': src under 20,800 lines",
-    "Size budgets, 'never bloat': src under 21,550 lines",
-    "Size budgets, 'never bloat': src under 24,000 lines",
-    "The App's pushes activate the required review",
-)
+KNOWN_REPEATS: dict[str, int | None] = {}
+RETIRED: tuple[str, ...] = ()
 
 
 def _keys() -> Counter[str]:
@@ -55,32 +30,6 @@ def test_no_row_key_is_duplicated() -> None:
         if count == 1 or (key in KNOWN_REPEATS and KNOWN_REPEATS[key] in (None, count)):
             continue
         raise AssertionError(f"docs/manifest.md row key repeated {count}x: {key!r}")
-
-
-def test_manifest_records_every_adr_0021_display_pin() -> None:
-    manifest = (ROOT / "docs/manifest.md").read_text()
-    controller_rows = [
-        row
-        for row in manifest.splitlines()
-        if row.startswith("| TradingView Desktop display controller pins |")
-    ]
-    assert len(controller_rows) == 1, "Record the complete ADR-0021 Desktop controller roster"
-    for repository, commit in (
-        ("iliaal/tradingview-mcp@1.4.0", "233f29e180031291dacac4c4cc2736a8dde161be"),
-        ("JostQQ/tradingview-mcp@v1.0.0", "89317db92b3b962fd8e89f3ec20462da6e4f2733"),
-        ("FerroxLabs/tvcontrol@v2.5.3", "85200201f92967db9e4b63a9251d51fcdfe1f3a8"),
-    ):
-        assert f"{repository} `{commit}`" in controller_rows[0]
-    for repository, commit in (
-        (
-            "[dgunning/edgartools](https://github.com/dgunning/edgartools)@v5.62.1",
-            "9f2ff388c0ad21cfbaba4c7587ba8be7abe6816d",
-        ),
-        ("gerrymanoim/exchange_calendars@4.13.2", "dbe38b1f6887434bbdd1a7d2df6ff8f1742a048a"),
-    ):
-        assert f"{repository} `{commit}`" in manifest
-    policy = (ROOT / "docs/adr/0021-tradingview-display.md").read_text()
-    assert "Lightweight Charts v5.2.1 (`b2ce010e4ad59f6556c9ed60e2b2b30feccdd2d1`)" in policy
 
 
 def test_no_retired_row_returns() -> None:

@@ -1,5 +1,4 @@
-# The gate recipes of Sextant's justfile (see ORIGINS.md), unchanged except `session-start`, which
-# keeps the two checks whose scripts ship here; Sextant's host-specific recipes are not included.
+# CI-only recipes adapted from the Sextant harness (see ORIGINS.md).
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 default:
@@ -22,7 +21,7 @@ lint:
     uv run --frozen ruff format --check .
     uv run --frozen pyright
     uv run --frozen zizmor --offline .github/workflows
-    shellcheck .github/actions/ci-tools/install.sh
+    shellcheck .github/actions/ci-tools/install.sh .github/rulesets/apply.sh scripts/pr-check.sh
     mapfile -t workflows < <(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) ! -name '*.lock.yml' | sort); actionlint -shellcheck shellcheck "${workflows[@]}"
 
 test path="":

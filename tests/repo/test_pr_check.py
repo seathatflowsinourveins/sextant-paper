@@ -6,6 +6,7 @@ No API call, push, dependency install, reviewer, or diff-size ceiling is involve
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -40,7 +41,7 @@ def _env() -> dict[str, str]:
     # Explicit environment prevents inherited service wrappers from replacing fixture tools.
     return {
         "PATH": os.defpath,
-        "HOME": "/tmp",
+        "HOME": tempfile.gettempdir(),
         "GIT_CONFIG_GLOBAL": "/dev/null",
         "GIT_CONFIG_NOSYSTEM": "1",
     }
