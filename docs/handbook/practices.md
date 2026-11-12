@@ -32,3 +32,5 @@ Start runtime proof stimuli from observed runtime callbacks and stop after repea
 Honor `EntryState.on_trade` returning False before downstream trade processing or entry submission; a retained ready run cannot make a rejected print an entry trigger. Evidence: LEAD-2218 addendum 1 and the retained R3 regression; [rejection lesson](LESSONS.md#7-a-rejected-print-stops-its-entry-path).
 
 Deduplicate a shared bar subscription only if the other consumer subscribed; an entry auto-subscription opt-out must retain protection-width bars. Evidence: the native shared-width RED/GREEN and lead ruling 2026-11-11 22:51; [subscription lesson](LESSONS.md#8-subscription-opt-out-preserves-other-consumers).
+
+Start admission walks replacement links across cached and withheld reconciliation rows, with one count per working endpoint. Preserve venue links omitted by native reports as read-only evidence; terminal ancestors never hide a working successor or falsely refuse a fully terminal chain. Keep owner mutation authority separate. [Reconciliation lesson and pinned sources](LESSONS.md#7-admission-walks-both-sides-of-reconciliation).
