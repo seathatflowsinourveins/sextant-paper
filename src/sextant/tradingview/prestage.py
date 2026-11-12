@@ -1,7 +1,7 @@
 """Keep the newest complete display unit fresh for the current display segment.
 
-This is a REST-only, display-only producer: it replays the current PRE, RTH or
-POST session's completed one-minute SIP bars through the bar-fidelity host, then
+This is a REST-only, display-only producer: it replays a segment's completed
+one-minute SIP bars (BOATS for opt-in OVERNIGHT) through the bar-fidelity host, then
 projects the ranked J5 document with the bridge into a research directory that
 ``python -m sextant.tradingview --loop`` consumes.  It opens no stream, calls no
 TradingView endpoint, and places no order.
@@ -58,6 +58,7 @@ from sextant.tradingview.bars import (
 from sextant.tradingview.baseline import SCALE, FiveSessionBaseline, _session_start
 from sextant.tradingview.bridge import DisplayBounds, project_display_unit
 from sextant.tradingview.cadence import Cadence
+from sextant.tradingview.cadence import next_display_open as _next_display_open
 from sextant.tradingview.host import BarFidelityHost, load_symbol_map
 from sextant.tradingview.inputs import read_research_inputs
 from sextant.tradingview.listings import creation_time
@@ -66,9 +67,7 @@ from sextant.tradingview.ranked_view import generation_view, view_document, writ
 
 NS = 1_000_000_000
 MINUTE_NS = 60 * NS
-# OVERNIGHT (20:00-04:00 ET) is the next PR: bridge.py must accept it and #138
-# supplies the boats baseline for this same publish path.
-SUPPORTED = frozenset({"PRE", "RTH", "POST"})
+SUPPORTED = frozenset({"PRE", "RTH", "POST", "OVERNIGHT"})
 ET = ZoneInfo("America/New_York")
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CADENCE_REGISTRY = ROOT / "lanes/tradingview/j5-cadence.params.json"
@@ -76,7 +75,7 @@ DEFAULT_K2_REGISTRY = ROOT / "lanes/tradingview/k2-ranking.params.json"
 DEFAULT_PRESTAGE_PARAMETERS = ROOT / "lanes/tradingview/prestage-parameters.json"
 DEFAULT_DISPLAY_BOUNDS = ROOT / "lanes/tradingview/display-bounds.params.json"
 DEFAULT_STATE_ROOT = Path.home() / "sextant-data" / "tradingview-prestage"
-SIP_AUTHORITY = "slot-2 SIP market-data entitlement; REST-only display host"
+FEED_AUTHORITY = "{feed} REST-only display request; entitlement determined by vendor response"
 MAPPING_SOURCE = "NASDAQ Trader nasdaqlisted.txt + otherlisted.txt read 2026-11-09"
 REFERENCE_SOURCE = "alpaca_sip_split_1day official split-adjusted close"
 ASSET_SOURCE = (
@@ -212,10 +211,15 @@ def build_segment_baseline(
     sessions: Sequence[date],
     known_at: int,
     provenance: str = PROVENANCE,
+    feed: str = "sip",
 ) -> FiveSessionBaseline:
     """Stream one session at a time into the same curves/digest as build_baseline."""
     if segment.name not in SUPPORTED:
         raise PrestageError(f"no baseline for a {segment.name} segment")
+    if feed != ("boats" if segment.name == "OVERNIGHT" else "sip"):
+        raise PrestageError("display baseline feed/segment mismatch")
+    if feed == "boats" and provenance == PROVENANCE:
+        provenance = PROVENANCE.replace("sip", "boats")
     names = tuple(sorted(set(symbols)))
     if not names or len(names) != len(tuple(symbols)):
         raise PrestageError("A baseline needs distinct symbols")
@@ -232,8 +236,17 @@ def build_segment_baseline(
     digest = hashlib.sha256()
     for day in ordered:
         session_start = _session_start(day, segment)
+        if feed == "boats" and not session_start + span <= known_at <= segment.start_ns:
+            raise PrestageError("overnight history must be completed and known before this segment")
         start = datetime.fromtimestamp(session_start / NS, ET)
-        bars = source.minute_bars(names, start=start, end=start + timedelta(seconds=span // NS))
+        end = start + timedelta(seconds=span // NS)
+        if feed == "boats":
+            end -= timedelta(microseconds=1)  # REST end is inclusive; keep PRE outside the window.
+        bars = source.minute_bars(names, start=start, end=end)
+        if feed == "boats" and not any(
+            session_start <= bar.start_ns < session_start + span for bar in bars
+        ):
+            raise PrestageError("missing requested overnight session")
         dv = array("q", [0]) * (len(names) * points)
         counts = array("i", [0]) * (len(names) * points)
         deltas: dict[int, list[int]] = {}
@@ -264,8 +277,6 @@ def build_segment_baseline(
         digest.update(day.isoformat().encode())
         digest.update(dv.tobytes())
         digest.update(counts.tobytes())
-    if len(dv_curves) != 5:
-        raise PrestageError("A baseline needs five sessions")
     return FiveSessionBaseline(
         segment=segment.name,
         end_s=span // NS,
@@ -276,6 +287,7 @@ def build_segment_baseline(
         dv=tuple(dv_curves),
         counts=tuple(count_curves),
         data_digest=digest.hexdigest(),
+        feed=feed,
     )
 
 
@@ -370,14 +382,18 @@ def load_display_bounds(path: Path = DEFAULT_DISPLAY_BOUNDS) -> DisplayBounds:
         raise refusal from None
 
 
-def operator_source(lease: Any, *, requests_per_minute: int) -> AlpacaSource:
+def operator_source(
+    lease: Any, *, requests_per_minute: int, feed: DataFeed = DataFeed.SIP
+) -> AlpacaSource:
     """The default source, built from the with-keys environment as C builds its data client."""
+    if feed not in {DataFeed.SIP, DataFeed.BOATS}:
+        raise PrestageError("the display source requires SIP or original BOATS history")
     api_key, secret_key = _credentials()
     pacer = Pacer(Decimal(requests_per_minute))
     lease.bind_pacer(pacer)
     client = PacedStockBars(pacer=pacer, api_key=api_key, secret_key=secret_key)
     return AlpacaSource(
-        AlpacaBarSource(client, batch=MAX_BATCH),
+        AlpacaBarSource(client, batch=MAX_BATCH, feed=feed),
         AlpacaDailyBars(client, batch=MAX_BATCH),
     )
 
@@ -537,7 +553,7 @@ def _replay(
     host = BarFidelityHost(
         publisher,
         lease=lease,
-        sip_authority=SIP_AUTHORITY,
+        feed_authority=FEED_AUTHORITY.format(feed=feed.upper()),
         symbol_map=dict(symbol_map),
     )
     return publisher, host, _feed_minutes(host, symbols, by_minute, since_ns=None)
@@ -673,6 +689,8 @@ def publish_tick(
     """
     if segment.name not in SUPPORTED:
         raise PrestageError(f"the producer does not write {segment.name} units")
+    if feed != ("boats" if segment.name == "OVERNIGHT" else "sip") or baseline.feed != feed:
+        raise PrestageError("display feed/segment/baseline mismatch")
     if not segment.start_ns <= now_ns < segment.end_ns:
         raise PrestageError("the publish clock is outside the supplied segment")
     start = datetime.fromtimestamp(segment.start_ns / NS, ET)
@@ -813,19 +831,6 @@ def publish_tick(
     }
 
 
-def _next_display_open(now_ns: int) -> int:
-    local = datetime.fromtimestamp(now_ns / NS, ET)
-    calendar = get_calendar("XNYS")
-    for offset in range(0, 9):
-        day = local.date() + timedelta(days=offset)
-        candidate = datetime.combine(day, clock_time(4, 0), tzinfo=ET)
-        if candidate <= local:
-            continue
-        if calendar.is_session(day.isoformat()):
-            return _ns(candidate)
-    raise PrestageError("no display session opens in the next eight days")
-
-
 def run(
     *,
     research_dir: Path,
@@ -857,7 +862,7 @@ def run(
         Path(nasdaq_listed), Path(other_listed), Path(symbol_map_path)
     )
     state_root = Path(state_root)
-    Cadence(
+    cadence = Cadence(
         state_root / "cadence-unused",
         Path(cadence_registry),
         page=lambda _: None,
@@ -874,18 +879,24 @@ def run(
     while True:
         now_ns = int(clock())
         segment, _, _ = segment_start(now_ns)
-        if segment is None or segment.name not in SUPPORTED:
+        overnight_enabled = bool(cadence.params["overnight_enabled"])
+        if segment is None or (segment.name == "OVERNIGHT" and not overnight_enabled):
             reason = (
                 "the exchange is closed"
                 if segment is None
-                else f"{segment.name} is not produced until #138 supplies a BOATS baseline"
+                else "OVERNIGHT is disabled in the reviewed registry"
             )
             page(f"TV producer idle: {reason}; no unit written.")
             if view is not None:
                 view.write(now_ns, f"the producer is idle: {reason}")
             if once:
                 return 0
-            sleep(max(0.0, (_next_display_open(now_ns) - now_ns) / NS))
+            sleep(
+                max(
+                    0.0,
+                    (_next_display_open(now_ns, overnight_enabled=overnight_enabled) - now_ns) / NS,
+                )
+            )
             continue
         segment_key = (segment.session_date, segment.name)
         if segment_key in refused:
@@ -898,19 +909,26 @@ def run(
             state_root / "leases",
             paper_slot=2,
         ) as lease:
+            feed = "boats" if segment.name == "OVERNIGHT" else "sip"
             if source_factory is None:
                 rate = load_request_budget()
-                source = operator_source(lease, requests_per_minute=rate)
+                source = operator_source(lease, requests_per_minute=rate, feed=DataFeed(feed))
             else:
                 source = source_factory(lease)
             try:
-                sessions = baseline_sessions(segment.session_date, segment)
+                sessions = baseline_sessions(
+                    segment.session_date,
+                    segment,
+                    cadence.params["overnight_baseline_sessions"] if feed == "boats" else 5,
+                )
+                baseline_known_at = _at(sessions[-1], 4 if feed == "boats" else 20)
                 baseline = build_segment_baseline(
                     source,
                     segment=segment,
                     symbols=universe,
                     sessions=sessions,
-                    known_at=_at(sessions[-1], 20),
+                    known_at=baseline_known_at,
+                    feed=feed,
                 )
                 reference_day = (
                     segment.session_date
@@ -918,9 +936,7 @@ def run(
                     else prior_sessions(segment.session_date, 1)[-1]
                 )
                 available, closes = collect_references(source, day=reference_day, symbols=universe)
-                reference_ns = (
-                    segment.start_ns if segment.name == "POST" else _at(reference_day, 16)
-                )
+                reference_ns = int(get_calendar("XNYS").session_close(reference_day).value)
                 universe_source = (
                     f"{listing}; {len(available)} of {len(universe)} mapped symbols with a "
                     f"{reference_day.isoformat()} SIP official close; NOT PIT membership"
@@ -948,7 +964,8 @@ def run(
                         segment=segment,
                         symbols=directory,
                         sessions=sessions,
-                        known_at=_at(sessions[-1], 20),
+                        known_at=baseline_known_at,
+                        feed=feed,
                     )
                     view.symbols, view.closes = collect_references(
                         source, day=reference_day, symbols=directory
@@ -991,6 +1008,7 @@ def run(
                         max_age=max_age,
                         clock=clock,
                         view=view,
+                        feed=feed,
                     )
                     page(json.dumps(receipt, sort_keys=True, default=str))
                 except (PrestageError, ValueError, APIError) as error:
@@ -1017,7 +1035,7 @@ def run(
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m sextant.tradingview.prestage",
-        description="Keep the newest complete display unit fresh for PRE, RTH and POST.",
+        description="Keep the newest complete display unit fresh; OVERNIGHT is registry opt-in.",
     )
     parser.add_argument("--research-dir", type=Path, required=True)
     parser.add_argument("--nasdaq-listed", type=Path, required=True)

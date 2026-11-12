@@ -351,7 +351,7 @@ def test_j5_registry_requires_every_sourced_uncalibrated_row(tmp_path, bad):
     elif bad == "duplicate":
         raw["rows"].append(raw["rows"][0])
     elif bad == "overnight":
-        next(r for r in raw["rows"] if r["name"] == "overnight_enabled")["value"] = 1
+        next(r for r in raw["rows"] if r["name"] == "overnight_enabled")["value"] = 2
     else:
         key, value = {
             "source": ("source", ""),

@@ -10,15 +10,24 @@ import hashlib
 import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
 
 from sextant.execution.custody import AccountScope, CustodyError, WriterLease
 from sextant.execution.state import write_atomic
+from sextant.ranking.baseline import segment_start
 from sextant.ranking.registry import RegistryRow
-from sextant.tradingview.inputs import DISPLAY_PAPER_SLOT, ET, NAMES, QUALIFIED, _ns, _session
+from sextant.tradingview.inputs import (
+    DISPLAY_PAPER_SLOT,
+    ET,
+    NAMES,
+    QUALIFIED,
+    _calendar,
+    _ns,
+    _session,
+)
 
 # The T1 producer document and the loop's explicit two-list display view. Both
 # describe exactly one complete membership observation; neither is a score feed.
@@ -30,6 +39,7 @@ ROWS = {
     "max_concurrent_runs": "runs",
     "max_retries": "retries",
     "overnight_enabled": "flag",
+    "overnight_baseline_sessions": "sessions",
     **dict.fromkeys(("onset_floor_s", "regular_floor_s", "usage_floor_s"), "seconds"),
     "weekly_usage_backoff_pct": "percent",
     **dict.fromkeys(
@@ -44,6 +54,19 @@ ROWS = {
         "minute ET",
     ),
 }
+
+
+def next_display_open(now_ns: int, *, overnight_enabled: bool = False) -> int:
+    """Next XNYS daytime/overnight opening, using each candidate's trading date."""
+    local = datetime.fromtimestamp(now_ns // 1_000_000_000, ET)
+    for offset in range(9):
+        day = local.date() + timedelta(days=offset)
+        for hour in (4, 20) if overnight_enabled else (4,):
+            candidate = datetime.combine(day, time(hour), tzinfo=ET)
+            trading_day = day + timedelta(days=1) if hour == 20 else day
+            if candidate > local and _calendar(trading_day.year).is_session(trading_day):
+                return _ns(candidate)
+    raise ValueError("no display session opens in the next eight days")
 
 
 def _members(value: dict) -> dict:
@@ -107,13 +130,14 @@ class Cadence:
             values[row.name] = row.value
         if (
             values["enabled"] not in {0, 1}
+            or values["overnight_enabled"] not in {0, 1}
+            or values["overnight_baseline_sessions"] < 5
             or any(
                 values[k] != v
                 for k, v in {
                     "changed_only": 1,
                     "max_concurrent_runs": 1,
                     "max_retries": 0,
-                    "overnight_enabled": 0,
                 }.items()
             )
             or not 0
@@ -199,13 +223,18 @@ class Cadence:
         _ns(now)
         local, p = now.astimezone(ET), self.params
         minute = local.hour * 60 + local.minute
-        if not p["display_start_minute_et"] <= minute < p["display_end_minute_et"]:
-            return None
         try:
-            _session(now)
+            _, overnight = _session(now)
         except ValueError:
             return None
-        onset = (
+        if overnight:
+            if not p["overnight_enabled"]:
+                return None
+        elif not p["display_start_minute_et"] <= minute < p["display_end_minute_et"]:
+            return None
+        if segment_start(_ns(now))[0] is None:
+            return None
+        onset = not overnight and (
             p["am_start_minute_et"] <= minute < p["am_end_minute_et"]
             or p["pm_start_minute_et"] <= minute < p["pm_end_minute_et"]
         )
