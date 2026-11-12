@@ -137,3 +137,19 @@ Baseline: `bbbe7f5e51159c346b28117bff93361439d2e5c9`. Every listed copied file e
 The effective include inventory grows from 119 to 121 at this baseline: custody/test_b_attended_entry.py and custody/test_b_attended_stop.py are added. D copies 118 effective include files; test_tradingview_units.py, test_tradingview_listings.py and test_ranking_node_parameters.py belong to seat E. Three additional support files and eight fixture assets bring D's copied total to 129 byte-identical files. All 75 effective outside files are omitted. Seven test nodes are held explicitly in tests/conftest.py; all other imported test bodies remain runnable. No vendored chart library is copied or needed by these selected tests.
 
 The collection hook follows [pytest collection-time skips](https://docs.pytest.org/en/stable/example/simple.html#control-skipping-of-tests-according-to-command-line-option), read 2026-11-11. Helpers remain importable even when their document assertions are held. Both Nasdaq fixtures remain byte-identical; seat E copies the same bytes, allowing identical additions to merge. The baseline owner-thread teardown is unchanged; a later GC-scope fix is not imported.
+
+## Held tests
+
+| Held test node | Reason |
+| --- | --- |
+| `tests/proofs/test_ranking.py::test_k2_preregistration_stays_frozen_and_not_run` | HELD: reads Sextant's research preregistration, outside the paper import |
+| `tests/proofs/test_ranking.py::test_k3_preregistration_stays_frozen_and_not_run` | HELD: reads Sextant's research preregistration, outside the paper import |
+| `tests/proofs/test_ranking.py::test_successor_n1_preregistration_stays_frozen_and_not_run` | HELD: reads Sextant's research preregistration, outside the paper import |
+| `tests/proofs/test_ranking_heartbeat.py::test_the_entry_age_authority_stays_unavailable` | HELD: reads Sextant's manifest and ranking ADR, replaced by the landscape |
+| `tests/proofs/test_tradingview.py::test_preset_roster_keeps_managed_tickets_plain_limit` | HELD: reads Sextant's mixed-topic TradingView manual, including IBKR |
+| `tests/proofs/test_tradingview.py::test_preset_import_card_matches_the_reviewed_manifest_hashes` | HELD: reads the owner import card in Sextant's excluded TradingView manual |
+| `tests/proofs/test_tradingview_prestage_followups.py::test_the_3a_arrival_note_is_gone_once_the_loop_ships` | HELD: reads Sextant's manifest and excluded TradingView manual |
+
+## Integration verification
+
+C's source import `960ae0b0ed8ec89e799e3df6d8e9747fda141bd2` was merged with `--no-ff`. All 129 copies remained identical. Serial `test_surge.py` smoke: 24 passed. Four-worker proofs: 1 failed, 2244 passed, 11 skipped, 9 xfailed, 79 warnings in 233.04s. The sole failure reads E-owned `scripts/keys.sh` from `test_tradingview.py::test_keys_registers_the_tradingview_login_sealed_name`; keep this assertion runnable. The lead accepted that expected failure for this local hand-back and requires landing C, then E, then D. After C/E land, merge main and rerun the full proofs and one four-worker ci-local; no ci-local has run in D yet. Baseline PyClock/PyLogger unsendable-drop warnings are recorded; the lead ruled that warnings alone do not stop the cut. No independent review or attended-run approval is claimed.
