@@ -1,0 +1,254 @@
+[
+  {
+    "name": "first_leg_window_s",
+    "unit": "seconds",
+    "value": 120,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:48 (:67 duplicate); SurgeConfig/MinuteSnapshotConfig UNCALIBRATED starts from ARCH LEAD #413; REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "first_leg_trades_count",
+    "unit": "count",
+    "value": 5,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:114; REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "first_leg_span_s",
+    "unit": "seconds",
+    "value": "2",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:126; REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "first_leg_max_move",
+    "unit": "ratio",
+    "value": "0.03",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:138; REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "entry_max_vwap_extension_atr",
+    "unit": "ratio",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "entry_chase_bps",
+    "unit": "basis_points",
+    "value": "0",
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:162; REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "entry_ttl_s",
+    "unit": "seconds",
+    "value": 1,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:174; REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "reclaim_lookback_s",
+    "unit": "seconds",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "reclaim_trades_count",
+    "unit": "count",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "reclaim_trades_span_s",
+    "unit": "seconds",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "reclaim_hold_s",
+    "unit": "seconds",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "reclaim_max_above_buffers",
+    "unit": "ratio",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "atr_period",
+    "unit": "count",
+    "value": 22,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:37 (trail_atr_period, renamed by src/northstar_trading/strategies/premarket_gap/lane_exit_inputs.py:48-64); REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "atr_bar_minutes",
+    "unit": "minutes",
+    "value": 5,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:38 (trail_bar_minutes, renamed by src/northstar_trading/strategies/premarket_gap/lane_exit_inputs.py:48-64); REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "max_data_age_s",
+    "unit": "seconds",
+    "value": 5,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/strategies/base.py:144 default quote_max_age_secs=5; deployments/paper.json:167; premarket_gap/scanner.py:855-859 feeds FirstLegSignal.max_age_ns; REVIEWED by the lead's ruling https://github.com/seathatflowsinourveins/sextant-archive/pull/68#issuecomment-6712251048 (2026-11-07 14:53 EST) on the dsh method review 87d0749f at daeb3b1",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-07",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "max_armed_symbols",
+    "unit": "count",
+    "value": 5,
+    "source": "LEAD-1759 section 2 item 3 (2026-11-09 17:59 EST), confirmed by LEAD-1808 #201 (2026-11-09 18:08 EST): C inherits A's reviewed 5-name profile, UNCALIBRATED; docs/adr/0002-philosophy-and-lanes.md and docs/design.md profile table; docs/adr/0024-extreme-mover-ranking-and-early-entry.md: ceil(0.4 x 5) = 2 mover places; seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/strategies/premarket_gap/scanner.py:991-1105",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-09",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "bp_target_fraction",
+    "unit": "ratio",
+    "value": "1",
+    "source": "D-38 owner direction, 2026-11-10 17:33 EST, via LEAD-1735 item 2: C runs at 1x per docs/adr/0002-philosophy-and-lanes.md:33 ('on C at 1x'); leverage above 1x stays owner-only; lead reading, UNCALIBRATED",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "stop_ref_fraction",
+    "unit": "ratio",
+    "value": "0.010",
+    "source": "D-38 owner direction, 2026-11-10 17:33 EST, via LEAD-1735 item 2: C sized per trade by the size-from-risk rule (docs/design.md:25, docs/adr/0004-entry.md:21); 1.0 percent of the planned basis, lead reading, UNCALIBRATED",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "portfolio_slots",
+    "unit": "count",
+    "value": 5,
+    "source": "D-38 owner direction, 2026-11-10 17:33 EST, via LEAD-1735 item 2; the owner's 2026-11-09 capacity authorization sets C's 5-name capacity; mover quota 2 follows docs/design.md:25's ceil(0.4 x cap); lead reading, UNCALIBRATED",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "stopout_size_decay",
+    "unit": "ratio",
+    "value": "1",
+    "source": "LEAD-1735 item 2: the stopout term is not applied on a first leg (identity 1); docs/adr/0004-entry.md:21; no separate calibration",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "stopout_size_floor",
+    "unit": "ratio",
+    "value": "1",
+    "source": "LEAD-1735 item 2: the stopout term is not applied on a first leg (identity 1); docs/adr/0004-entry.md:21; no separate calibration",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "confidence_size_floor",
+    "unit": "ratio",
+    "value": "1",
+    "source": "LEAD-1735 item 2: no confidence multiplier on an unscored first leg (identity 1); docs/adr/0004-entry.md:22; no separate calibration",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "chase_cap_fraction",
+    "unit": "ratio",
+    "value": "0.03",
+    "source": "src/sextant/paper/c_live_main.py:930 (0.03 on main, from first_leg_max_move by analogy, uncalibrated); docs/adr/0004-entry.md:21; docs/adr/0025-gain-protection-and-fast-exit.md:26; LEAD-1735 item 2",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "flow_share_cap",
+    "unit": "ratio",
+    "value": "0.05",
+    "source": "docs/adr/0002-philosophy-and-lanes.md:33: S notional <=5 percent of prior-five-minute dollar volume, applied to C by LEAD-1735 item 2",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "flow_share_window_s",
+    "unit": "seconds",
+    "value": "300",
+    "source": "docs/adr/0002-philosophy-and-lanes.md:33: prior five-minute dollar volume (300 seconds), applied to C by LEAD-1735 item 2",
+    "calibration": "UNCALIBRATED",
+    "last_change": "2026-11-10",
+    "scope": "REVIEWED"
+  },
+  {
+    "name": "covered_flow_window_s",
+    "unit": "seconds",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "covered_flow_baseline_min",
+    "unit": "minutes",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  },
+  {
+    "name": "covered_flow_ratio",
+    "unit": "ratio",
+    "value": null,
+    "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0005-entry.md:N1-N5,registry; ATR rows:docs/adr/0006-exit-engine.md:X2",
+    "calibration": "UNAVAILABLE",
+    "last_change": "2026-11-06",
+    "scope": "UNAVAILABLE"
+  }
+]

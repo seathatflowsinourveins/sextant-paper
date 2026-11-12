@@ -1,0 +1,35 @@
+//@version=6
+// SPDX-License-Identifier: LGPL-3.0
+// DISPLAY ONLY. Manual size/formula panel: NOT a historical order-book signal.
+// Mirrors northstar_trading/strategies/quote_imbalance/{signals,config}.py at
+// d05a3c99d7370767bd52cc6a26ddeea6cd940bcc (feat/quote-imbalance), derived from
+// Nautech Systems Pty Ltd. OrderBookImbalance, v2.0.0rc7 (LGPL-3.0).
+// Official Pine v6 references, accessed 2026-10-23:
+// https://www.tradingview.com/pine-script-reference/v6/#fun_indicator
+// https://www.tradingview.com/pine-script-reference/v6/#fun_input.float
+// https://www.tradingview.com/pine-script-reference/v6/#fun_table.cell
+// https://www.tradingview.com/pine-script-docs/concepts/other-timeframes-and-data/
+// No verified Pine bid/ask QUEUE-SIZE feed: bid/ask prices or footprint volume
+// cannot substitute for Nautilus best-level sizes. Inputs are owner-typed only.
+indicator("NS 2026-11-06 · quote_imbalance", overlay = false)
+
+float bidSize = input.float(0, "MANUAL best bid size (0 = unknown)", minval = 0)
+float askSize = input.float(0, "MANUAL best ask size (0 = unknown)", minval = 0)
+float minSize = input.float(100, "Strict larger-size minimum", minval = 0)
+float ratioLimit = input.float(0.2, "Strict smaller/larger upper bound", minval = 0.0001, maxval = 0.9999)
+float larger = math.max(bidSize, askSize)
+float smaller = math.min(bidSize, askSize)
+bool valid = bidSize > 0 and askSize > 0
+float ratio = valid ? smaller / larger : na
+bool passes = valid and larger > minSize and ratio < ratioLimit
+string direction = not valid ? "UNKNOWN: enter both positive sizes" : not passes ? "No formula trigger" : bidSize > askSize ? "Bid-dominant formula" : "Ask-dominant formula"
+
+// Only a last-bar table, never a constant manual input painted as history.
+plot(float(na), "No historical queue-size series")
+var table panel = table.new(position.top_right, 1, 5)
+if barstate.islast
+    table.cell(panel, 0, 0, "DISPLAY ONLY - MANUAL INPUTS, NOT LIVE BOOK", bgcolor = color.orange)
+    table.cell(panel, 0, 1, direction, text_color = passes ? color.lime : color.gray)
+    table.cell(panel, 0, 2, "larger=" + str.tostring(larger) + "; smaller/larger=" + str.tostring(ratio))
+    table.cell(panel, 0, 3, "Requires larger > min AND ratio < limit; equality does not trigger.")
+    table.cell(panel, 0, 4, "No bot position, cooldown, sizing, short-permission or exit state.\nManual inputs have no timestamp/freshness guarantee.")

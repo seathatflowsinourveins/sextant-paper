@@ -1,0 +1,30 @@
+[
+  {
+    "file": "ema_cross.pine",
+    "script_id": "NS 2026-11-06 · ema_cross",
+    "sha256": "648ec3830d757a90333792711ac6e19642e7ab2bef315d7bb5b21d31b87bdd37",
+    "upstream_sha256": "7d33d9d3a9e23915e9047b06de66ee69589be21eda70d52ec33334b11ea838ca",
+    "upstream_title": "NS EMA cross - display only"
+  },
+  {
+    "file": "hurst_vpin.pine",
+    "script_id": "NS 2026-11-06 · hurst_vpin",
+    "sha256": "bec431f2c9e49e062d0a43e1dea20079774b0827d42266b131351eea256c8b7d",
+    "upstream_sha256": "7e74cd5e30d2a00306a02fee3bf96808d41b0bd0259adcddd07ebd989a599122",
+    "upstream_title": "NS Hurst / VPIN proxy - display only"
+  },
+  {
+    "file": "quote_imbalance.pine",
+    "script_id": "NS 2026-11-06 · quote_imbalance",
+    "sha256": "86977f1a86f5dc76b808e457fc5ca1849320bda4990094caf8e0a65ac97ad9e7",
+    "upstream_sha256": "c03362d89e6abd8952ffd3723e9183490bc0a5aa1e03d5a2f4728c647add5f55",
+    "upstream_title": "NS quote imbalance - manual formula only"
+  },
+  {
+    "file": "exit_levels.pine",
+    "script_id": "NS 2026-11-06 · exit_levels",
+    "sha256": "210733c3312a4497ef8e2ad8e01ff5f607d9b93c724087d0a87ab2fa7e5029ac",
+    "upstream_sha256": "3da11f8b6de0176adf07b17ea8041cce23debba2bfac3decf8b0dbf34ec08972",
+    "upstream_title": "Northstar C5 / R / breakeven — DISPLAY ONLY"
+  }
+]

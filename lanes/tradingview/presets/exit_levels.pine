@@ -1,0 +1,215 @@
+//@version=6
+// Northstar exit replay display, 2026-10-29. DISPLAY ONLY; long entry entered by owner.
+// No account, position, fill or execution knowledge. No alerts or automation.
+// Use STANDARD 1-minute candles, an RTH entry before 15:55 America/New_York,
+// and enough loaded history to include the entry minute and the opening range.
+// C5 is frozen at 5 minutes / Wilder ATR22 / 3x. The initial ATR is the last
+// completed 5-minute ATR AT ENTRY; HH starts at entry and excludes a partial
+// entry minute. At each completed 5-minute boundary: max(old stop, HH - 3*ATR).
+// Confirmed 1-minute highs enter HH only AFTER the boundary calculation, so a
+// boundary never borrows the new minute's high. Updates/BE markers appear on
+// the first 1-minute bar at that boundary, requiring that next bar to exist.
+// The 5-minute and daily requests use expression[1] + lookahead_on, NOT an
+// unshifted lookahead. Daily ATR is frozen before the entry session, at entry.
+// Wilder's arithmetic seed equals ta.rma's SMA seed at bar 22 (daily: bar 14);
+// subsequent updates are old + (TR-old)/period. No early ATR or late warm-up fill.
+// Opening range = the FIVE confirmed 09:30..09:34 New York minute bars on the
+// entry date; missing minutes leave it unavailable. Its final lines start at 09:35,
+// when the range is complete, and run to 16:00; nothing is drawn before it is known.
+// R = max(entry - structural low, 10% of prior daily ATR14, 3*spread).
+// Structural override 0 uses the completed opening-range low. If that range was
+// not known at entry, R stays unavailable; later bars never repair entry inputs.
+// Spread 0 means UNSET, not a measured zero: any displayed R is provisional.
+// BE = entry*(1 + round-trip cost bps/10000); default 6 bps TOTAL, not per side.
+// Lock uses candidate > BE (the spec's strict "exceeds"); equality does not lock.
+// The pre-lock segment stays dashed; only the post-trigger segment is solid.
+// These are separate formula levels, not an effective combined protective level.
+// The checked manager has no R/C5/BE combination rule: signals.py:44-63 below
+// implements a mark-based fixed/ratchet/ATR policy, NOT this selected C5 design.
+// Replay differences: TradingView feed, adjustments, session (RTH vs ETH), history
+// seed and possibly incomplete 5-minute bins differ from SIP's complete-bin tape.
+// Replay rounds a partial entry UP before sampling ATR (:335-355); this display
+// instead samples only ATR already completed AT entry, including at xx:x4:ss.
+// This is a level path through the replay's 15:55 ET horizon, not a fill/exit
+// simulation: it does not stop drawing after a crossed C5, simulate a next-open
+// fill, apply the replay's costs on both notionals, or draw quote/active exits.
+// Pine floats are NOT Decimal order arithmetic; gaps/halts can jump any level.
+// Local sources checked, 2026-10-29:
+// scripts/research/b_exit_replay.py@768866ff82401c0f1d46451949c7f54b22cea75e
+// :70-85 (seed), :234-255 (complete 5m bins/ATR close times), :331-380 (C5),
+// :1074 (Variant(5,22,3)); no momentum, VWAP or overlay additions.
+// docs/superpowers/specs/2026-10-29-momentum-rotation-design.md
+// @5b9130cb072efa5f2598f11e3dc6ad0901115290:64-94 (sections 3.2-3.3).
+// src/northstar_trading/strategies/exit_manager/signals.py
+// @be2d978c75c73a65204557b8080a85c9a1410263:44-63 (no combined rule).
+// Upstream Pine v6 references, accessed 2026-10-29; every API/built-in used below:
+// https://www.tradingview.com/pine-script-reference/v6/#fun_indicator
+// https://www.tradingview.com/pine-script-reference/v6/#fun_input.time
+// https://www.tradingview.com/pine-script-reference/v6/#fun_input.float
+// https://www.tradingview.com/pine-script-reference/v6/#fun_input.int
+// https://www.tradingview.com/pine-script-reference/v6/#fun_request.security
+// https://www.tradingview.com/pine-script-reference/v6/#fun_ta.atr
+// https://www.tradingview.com/pine-script-reference/v6/#fun_ta.rma
+// https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma
+// https://www.tradingview.com/pine-script-reference/v6/#fun_na
+// https://www.tradingview.com/pine-script-reference/v6/#fun_math.max
+// https://www.tradingview.com/pine-script-reference/v6/#fun_math.min
+// https://www.tradingview.com/pine-script-reference/v6/#fun_timestamp
+// https://www.tradingview.com/pine-script-reference/v6/#fun_year
+// https://www.tradingview.com/pine-script-reference/v6/#fun_month
+// https://www.tradingview.com/pine-script-reference/v6/#fun_dayofmonth
+// https://www.tradingview.com/pine-script-reference/v6/#fun_line.new
+// https://www.tradingview.com/pine-script-reference/v6/#fun_line.set_x2
+// https://www.tradingview.com/pine-script-reference/v6/#fun_plotshape
+// https://www.tradingview.com/pine-script-reference/v6/#fun_table.new
+// https://www.tradingview.com/pine-script-reference/v6/#fun_table.cell
+// https://www.tradingview.com/pine-script-reference/v6/#fun_str.tostring
+// https://www.tradingview.com/pine-script-reference/v6/#var_time
+// https://www.tradingview.com/pine-script-reference/v6/#var_time_close
+// https://www.tradingview.com/pine-script-reference/v6/#var_timenow
+// https://www.tradingview.com/pine-script-reference/v6/#var_high
+// https://www.tradingview.com/pine-script-reference/v6/#var_low
+// https://www.tradingview.com/pine-script-reference/v6/#var_syminfo.tickerid
+// https://www.tradingview.com/pine-script-reference/v6/#var_timeframe.isminutes
+// https://www.tradingview.com/pine-script-reference/v6/#var_timeframe.multiplier
+// https://www.tradingview.com/pine-script-reference/v6/#var_timeframe.period
+// https://www.tradingview.com/pine-script-reference/v6/#var_chart.is_standard
+// https://www.tradingview.com/pine-script-reference/v6/#var_barstate.isconfirmed
+// https://www.tradingview.com/pine-script-reference/v6/#var_barstate.isrealtime
+// https://www.tradingview.com/pine-script-reference/v6/#var_barstate.islast
+// https://www.tradingview.com/pine-script-reference/v6/#const_barmerge.lookahead_on
+// https://www.tradingview.com/pine-script-reference/v6/#const_xloc.bar_time
+// https://www.tradingview.com/pine-script-reference/v6/#const_line.style_dashed
+// https://www.tradingview.com/pine-script-reference/v6/#const_shape.diamond
+// https://www.tradingview.com/pine-script-reference/v6/#const_location.absolute
+// https://www.tradingview.com/pine-script-reference/v6/#const_size.tiny
+// https://www.tradingview.com/pine-script-reference/v6/#const_position.top_right
+// https://www.tradingview.com/pine-script-docs/concepts/other-timeframes-and-data/#avoiding-repainting
+// https://www.tradingview.com/pine-script-docs/concepts/repainting/#repainting-requestsecurity-calls
+// https://www.tradingview.com/pine-script-docs/language/operators/#-history-referencing-operator
+indicator("NS 2026-11-06 · exit_levels", overlay=true, max_lines_count=200)
+
+entryAt = input.time(0, "Entry time — required", group="Owner-entered long entry")
+entry = input.float(0.0, "Entry price — required", minval=0.0, group="Owner-entered long entry")
+costBps = input.float(6.0, "Round-trip cost (bps TOTAL)", minval=0.0, group="Entry risk inputs")
+spread = input.float(0.0, "Entry spread (price units; 0 = UNSET)", minval=0.0, group="Entry risk inputs")
+structuralOverride = input.float(0.0, "Event structural low override (0 = opening-range low)", minval=0.0, group="Entry risk inputs")
+c5Minutes = input.int(5, "C5 minutes — frozen", options=[5], group="Frozen replay / design parameters")
+c5Period = input.int(22, "C5 Wilder ATR period — frozen", options=[22], group="Frozen replay / design parameters")
+c5Multiple = input.float(3.0, "C5 ATR multiple — frozen", options=[3.0], group="Frozen replay / design parameters")
+dailyPeriod = input.int(14, "Daily Wilder ATR period — frozen", options=[14], group="Frozen replay / design parameters")
+dailyFloorPct = input.float(10.0, "R daily ATR floor (%) — frozen", options=[10.0], group="Frozen replay / design parameters")
+spreadMultiple = input.float(3.0, "R spread multiple — frozen", options=[3.0], group="Frozen replay / design parameters")
+
+configured = entryAt > 0 and entry > 0
+chartOk = timeframe.isminutes and timeframe.multiplier == 1 and chart.is_standard
+entryYear = year(entryAt, "America/New_York")
+entryMonth = month(entryAt, "America/New_York")
+entryDay = dayofmonth(entryAt, "America/New_York")
+rangeStart = timestamp("America/New_York", entryYear, entryMonth, entryDay, 9, 30)
+rangeEnd = timestamp("America/New_York", entryYear, entryMonth, entryDay, 9, 35)
+sessionEnd = timestamp("America/New_York", entryYear, entryMonth, entryDay, 16, 0)
+replayEnd = timestamp("America/New_York", entryYear, entryMonth, entryDay, 15, 55)
+entryInReplay = entryAt >= rangeStart and entryAt < replayEnd
+firstFullMinute = entryAt - entryAt % 60000 + (entryAt % 60000 == 0 ? 0 : 60000)
+beLevel = entry * (1.0 + costBps / 10000.0)
+
+// BOTH tuple elements are shifted in the requested 5m context. No current HTF data.
+[completedFiveAtr, completedFiveAt] = request.security(syminfo.tickerid, str.tostring(c5Minutes), [ta.atr(c5Period)[1], time_close[1]], lookahead=barmerge.lookahead_on)
+[completedDailyAtr, completedDailyAt] = request.security(syminfo.tickerid, "D", [ta.atr(dailyPeriod)[1], time_close[1]], lookahead=barmerge.lookahead_on)
+
+var int rangeCount = 0
+var float rangeHigh = na
+var float rangeLow = na
+var bool rangeReady = false
+var bool sampled = false
+var float entryFiveAtr = na
+var float entryDailyAtr = na
+var float rDistance = na
+var float rStop = na
+var float hh = na
+var float c5Stop = na
+var int nextMinute = na
+var bool pathGap = false
+var bool beLocked = false
+var line c5Segment = na
+var line beBefore = na
+var line beAfter = na
+bool lockNow = false
+
+// Sample the ACTUAL entry minute only, never the first later loaded bar. This
+// precedes the current minute's range/HH updates, including on historical bars.
+entrySeen = configured and chartOk and entryInReplay and time <= entryAt and entryAt < time_close and (not barstate.isrealtime or timenow >= entryAt)
+if entrySeen and not sampled
+    sampled := true
+    entryFiveAtr := completedFiveAt <= entryAt ? completedFiveAtr : na
+    entryDailyAtr := completedDailyAt < rangeStart ? completedDailyAtr : na
+    structuralLow = structuralOverride > 0 ? structuralOverride : rangeReady ? rangeLow : na
+    rDistance := math.max(entry - structuralLow, dailyFloorPct / 100.0 * entryDailyAtr, spreadMultiple * spread)
+    rStop := entry - rDistance
+    hh := entry
+    nextMinute := firstFullMinute
+    line.new(entryAt, entry, replayEnd, entry, xloc=xloc.bar_time, color=#62748E)
+    if not na(rStop)
+        line.new(entryAt, rStop, replayEnd, rStop, xloc=xloc.bar_time, color=spread > 0 ? #D74949 : #AA8121, width=2)
+    if not na(entryFiveAtr)
+        c5Stop := entry - c5Multiple * entryFiveAtr
+        c5Segment := line.new(entryAt, c5Stop, time_close, c5Stop, xloc=xloc.bar_time, color=#9070C2, width=2)
+    beBefore := line.new(entryAt, beLevel, time_close, beLevel, xloc=xloc.bar_time, color=#188477, style=line.style_dashed)
+
+if sampled and time >= firstFullMinute and time <= replayEnd
+    if time != nextMinute
+        pathGap := true
+    // HH contains ONLY completed held minutes strictly before this boundary.
+    if not pathGap and not na(c5Stop) and time == completedFiveAt and time > entryAt and not na(completedFiveAtr)
+        candidate = hh - c5Multiple * completedFiveAtr
+        tightened = math.max(c5Stop, candidate)
+        if tightened > c5Stop
+            line.set_x2(c5Segment, time)
+            c5Stop := tightened
+            c5Segment := line.new(time, c5Stop, math.min(time_close, replayEnd), c5Stop, xloc=xloc.bar_time, color=#9070C2, width=2)
+        if not beLocked and candidate > beLevel
+            beLocked := true
+            lockNow := true
+            line.set_x2(beBefore, time)
+            beAfter := line.new(time, beLevel, math.min(time_close, replayEnd), beLevel, xloc=xloc.bar_time, color=#188477, width=2)
+    if barstate.isconfirmed and not pathGap and time < replayEnd
+        hh := math.max(hh, high)
+        nextMinute := time_close
+
+if sampled and time <= replayEnd
+    if not pathGap and not na(c5Segment)
+        line.set_x2(c5Segment, math.min(time_close, replayEnd))
+    if beLocked
+        line.set_x2(beAfter, math.min(time_close, replayEnd))
+    else
+        line.set_x2(beBefore, math.min(time_close, replayEnd))
+
+// Complete the range AFTER sampling entry: a 09:34:ss entry cannot borrow its
+// own minute's future low. Exactly five ordered confirmed minute bars required.
+if configured and chartOk and barstate.isconfirmed and time >= rangeStart and time < rangeEnd and time == rangeStart + rangeCount * 60000
+    rangeHigh := rangeCount == 0 ? high : math.max(rangeHigh, high)
+    rangeLow := rangeCount == 0 ? low : math.min(rangeLow, low)
+    rangeCount += 1
+    if rangeCount == 5 and time_close == rangeEnd
+        rangeReady := true
+        line.new(rangeEnd, rangeHigh, sessionEnd, rangeHigh, xloc=xloc.bar_time, color=#AA8121)
+        line.new(rangeEnd, rangeLow, sessionEnd, rangeLow, xloc=xloc.bar_time, color=#AA8121)
+
+plotshape(lockNow ? beLevel : na, title="C5 candidate first exceeds cost breakeven", style=shape.diamond, location=location.absolute, color=#188477, text="BE", size=size.tiny)
+
+var table status = table.new(position.top_right, 1, 9)
+if barstate.islast
+    setupText = not configured ? "SETUP: set entry price AND entry time" : not entryInReplay ? "SETUP: entry must be 09:30..15:54:59 New York" : sampled ? "Entry sampled once; level path ends 15:55 ET" : time <= entryAt ? "Awaiting entry time" : "Entry minute missing / not loaded; no extrapolation"
+    warmText = not sampled ? "Warm-up checked at entry, never filled later" : "Entry ATR: 5m/22 " + (na(entryFiveAtr) ? "UNAVAILABLE" : str.tostring(entryFiveAtr, "#.########")) + " · D/14 " + (na(entryDailyAtr) ? "UNAVAILABLE" : str.tostring(entryDailyAtr, "#.########"))
+    c5Text = pathGap ? "MISSING held minute: C5/lock tracking stopped" : not sampled or na(c5Stop) ? "C5 unavailable · BE not armed" : "C5 " + str.tostring(c5Stop, "#.########") + " · BE " + str.tostring(beLevel, "#.########") + (beLocked ? " LOCKED" : " dashed / not locked")
+    riskText = "R stop " + (na(rStop) ? "UNAVAILABLE at entry" : str.tostring(rStop, "#.########")) + " · OR " + (rangeReady ? str.tostring(rangeLow, "#.########") + ".." + str.tostring(rangeHigh, "#.########") : "needs all 5 opening minutes")
+    table.cell(status, 0, 0, "DISPLAY ONLY · long-entry formula levels", text_color=#FFFFFF, bgcolor=#263449)
+    table.cell(status, 0, 1, chartOk ? "1-MINUTE STANDARD chart: OK" : "SETUP WARNING: NEEDS 1-MINUTE STANDARD chart (now " + timeframe.period + ")", text_color=#FFFFFF, bgcolor=chartOk ? #263449 : #A3442D)
+    table.cell(status, 0, 2, setupText, text_color=#263449, bgcolor=#EEF2F6)
+    table.cell(status, 0, 3, warmText, text_color=#263449, bgcolor=#EEF2F6)
+    table.cell(status, 0, 4, spread == 0 ? "WARNING: SPREAD UNSET; any R is PROVISIONAL" : "Entry spread " + str.tostring(spread, "#.########") + " price units · structural " + (structuralOverride > 0 ? "override" : "opening-range low"), text_color=spread == 0 ? #FFFFFF : #263449, bgcolor=spread == 0 ? #A3442D : #EEF2F6)
+    table.cell(status, 0, 5, c5Text, text_color=#263449, bgcolor=#EEF2F6)
+    table.cell(status, 0, 6, riskText, text_color=#263449, bgcolor=#EEF2F6)
+    table.cell(status, 0, 7, "Chart feed/session/seed may differ · NO combined manager level", text_color=#263449, bgcolor=#EEF2F6)
+    table.cell(status, 0, 8, "Pine FLOATS, not Decimal order arithmetic · no fill guarantee", text_color=#263449, bgcolor=#EEF2F6)
