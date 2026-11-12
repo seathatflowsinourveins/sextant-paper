@@ -27,6 +27,7 @@ from sextant.ranking.registry import RegistryRow
 from sextant.tradingview.inputs import DISPLAY_PAPER_SLOT, QUALIFIED
 
 SCOPE = AccountScope("alpaca-market-data", "paper-slot-2")
+REST_DISPLAY_SCOPE = AccountScope("alpaca-rest-display", "paper-slot-2")
 
 
 @contextmanager
@@ -39,6 +40,23 @@ def reserve_stream(
     if type(existing_streams) is not int or existing_streams != 0 or not source.strip():
         raise ValueError("sourced zero existing streams required; never a second stream")
     lease = WriterLease(SCOPE, root, "rank-live")
+    lease.acquire()
+    try:
+        yield lease
+    finally:
+        lease.close()
+
+
+@contextmanager
+def reserve_rest_display(root: Path, *, paper_slot: int) -> Iterator[WriterLease]:
+    """Serialize REST display producers under the canonical market-data lease root.
+
+    This grants no stream admission; a stream opener must take reserve_stream.
+    Build on custody.WriterLease's exclusive flock, with a distinct fixed scope.
+    """
+    if type(paper_slot) is not int or paper_slot != 2:
+        raise ValueError("only paper slot 2; slot 3 is revoked")
+    lease = WriterLease(REST_DISPLAY_SCOPE, root, "rest-display")
     lease.acquire()
     try:
         yield lease
@@ -63,11 +81,16 @@ class Clocks:
 
 
 class LiveProducer:
+    """Offline display seam; either reservation owns publication, neither opens a stream.
+
+    Actual stream hosts must independently enter reserve_stream before client construction.
+    """
+
     def __init__(
         self, publisher: RankingPublisher, lease: WriterLease, *, sip_authority: str
     ) -> None:
         if (
-            lease.scope != SCOPE
+            lease.scope not in {SCOPE, REST_DISPLAY_SCOPE}
             or not lease.held
             or not sip_authority.strip()
             or publisher.feed != "sip"
@@ -97,7 +120,7 @@ class LiveProducer:
 
     def _admit(self, clocks: Clocks, now: int) -> bool:
         if self.error or not self.lease.held:
-            raise ValueError("publisher invalid or stream lease released")
+            raise ValueError("publisher invalid or display lease released")
         if type(now) is not int or not (
             self.publisher.segment.start_ns <= now < self.publisher.segment.end_ns
         ):

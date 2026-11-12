@@ -988,3 +988,77 @@ def test_prestage_run_with_the_shipped_budget_still_needs_the_with_keys_pair(
             page=lambda line: None,
         )
     assert not (tmp_path / "unit").exists()
+
+
+def test_default_prestage_source_is_rest_only_beside_a_stream_holder(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Switching run back to the stream scope must fail before constructing its source."""
+    import socket
+
+    from alpaca.data.live import StockDataStream
+    from alpaca.trading.client import TradingClient
+
+    from sextant.execution.custody import CustodyError
+    from sextant.tradingview import prestage, producer
+
+    nasdaq, other, symbol_map = _run_fixture(tmp_path)
+    source = RecordedSource(prior_bars("PRE", PRIOR) + current_bars("PRE"))
+    observed = []
+    pages = []
+
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("REST display source attempted a stream, order client or network")
+
+    monkeypatch.setattr(StockDataStream, "__init__", refuse)
+    monkeypatch.setattr(TradingClient, "__init__", refuse)
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse)
+    monkeypatch.setattr(prestage, "_credentials", lambda: ("fixture", "fixture"))
+    # Keep the actual PacedStockBars, AlpacaSource and shared-pacer construction;
+    # replace only HTTP requests with recorded bars/closes.
+    monkeypatch.setattr(
+        prestage.AlpacaBarSource, "minute_bars", lambda self, *a, **kw: source.minute_bars(*a, **kw)
+    )
+    monkeypatch.setattr(
+        prestage.AlpacaDailyBars,
+        "daily_closes",
+        lambda self, *a, **kw: source.daily_closes(*a, **kw),
+    )
+    original = prestage.operator_source
+    root = tmp_path / "state" / "leases"
+
+    def checked_source(lease: Any, *, requests_per_minute: int) -> Any:
+        assert lease.scope == producer.REST_DISPLAY_SCOPE and lease.held
+        with pytest.raises(CustodyError):
+            with producer.reserve_rest_display(root, paper_slot=2):
+                pytest.fail("second producer admitted")
+        result = original(lease, requests_per_minute=requests_per_minute)
+        assert lease.pacer is result._bars.client._pacer
+        assert result._daily._client is result._bars.client
+        observed.append(lease)
+        return result
+
+    monkeypatch.setattr(prestage, "operator_source", checked_source)
+    with reserve_stream(root, paper_slot=2, existing_streams=0, source="fixture inventory"):
+        assert (
+            prestage.run(
+                research_dir=tmp_path / "unit",
+                nasdaq_listed=nasdaq,
+                other_listed=other,
+                symbol_map_path=symbol_map,
+                bounds=bounds(),
+                state_root=tmp_path / "state",
+                once=True,
+                clock=lambda: at(DAY, 4, 8),
+                sleep=lambda _: None,
+                page=pages.append,
+            )
+            == 0
+        )
+    assert len(observed) == 1
+    assert not observed[0].held and observed[0].pacer is None
+    assert (tmp_path / "unit").is_symlink()
+    assert read_research_inputs(
+        tmp_path / "unit", now=datetime.fromtimestamp(at(DAY, 4, 8) / NS, UTC)
+    ).memberships["NS movers"]

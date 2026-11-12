@@ -458,3 +458,150 @@ def test_no_deployment_registry_or_cadence_scheduler_is_created():
     assert not (ROOT / "src/sextant/ranking/live.py").exists()
     assert not (ROOT / "src/sextant/tradingview/display_lists.py").exists()
     assert not (ROOT / "src/sextant/tradingview/display_support.py").exists()
+
+
+# These witnesses catch a shared REST/stream scope, weakened exclusion/admission,
+# or release before the producer has finished using its bound pacer.
+def _reservation(kind, root):
+    from sextant.tradingview import producer
+
+    if kind == "rest":
+        return producer.reserve_rest_display(root, paper_slot=2)
+    return reserve_stream(root, paper_slot=2, existing_streams=0, source="fixture inventory")
+
+
+def _process_reservation(root, kind, *, inventory=None):
+    script = """
+import json
+from pathlib import Path
+import socket
+import sys
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.live import StockDataStream
+from alpaca.trading.client import TradingClient
+from sextant.execution.custody import AccountScope, CustodyError, WriterLease
+from sextant.tradingview import producer
+
+def refuse(*args, **kwargs):
+    raise AssertionError('reservation attempted client construction or network')
+
+for client in (StockDataStream, StockHistoricalDataClient, TradingClient):
+    client.__init__ = refuse
+socket.socket.connect = refuse
+socket.create_connection = refuse
+root, kind, inventory = Path(sys.argv[1]), sys.argv[2], json.loads(sys.argv[3])
+try:
+    if kind == 'old':
+        # The pre-migration producer's exact fixed scope and primitive at the base pin.
+        lease = WriterLease(AccountScope('alpaca-market-data', 'paper-slot-2'), root, 'rank-live')
+        lease.acquire()
+        lease.close()
+    else:
+        if kind == 'rest':
+            reservation = producer.reserve_rest_display(root, paper_slot=2)
+        else:
+            kwargs = {'existing_streams': 0, 'source': 'fixture inventory'}
+            if inventory is not None:
+                kwargs = inventory
+            reservation = producer.reserve_stream(root, paper_slot=2, **kwargs)
+        with reservation as lease:
+            assert lease.held
+    print('acquired')
+except CustodyError:
+    print('excluded')
+except (ValueError, TypeError):
+    print('invalid inventory')
+"""
+    done = subprocess.run(
+        [sys.executable, "-c", script, str(root), kind, json.dumps(inventory)],
+        capture_output=True,
+        text=True,
+        env={"PATH": os.defpath, "PYTHONPATH": str(ROOT / "src"), "HOME": str(root.parent)},
+        timeout=30,
+    )
+    assert done.returncode == 0, done.stderr
+    return done.stdout.strip()
+
+
+@pytest.mark.parametrize("first,second", [("rest", "stream"), ("stream", "rest")])
+def test_rest_and_one_stream_coexist_in_both_process_acquisition_orders(tmp_path, first, second):
+    with _reservation(first, tmp_path) as lease:
+        assert _process_reservation(tmp_path, second) == "acquired"
+        assert lease.held
+        assert _process_reservation(tmp_path, first) == "excluded"
+
+
+@pytest.mark.parametrize("kind", ["rest", "stream"])
+def test_each_scope_excludes_its_second_process_across_release_and_restart(tmp_path, kind):
+    for _ in range(2):
+        with _reservation(kind, tmp_path) as lease:
+            assert _process_reservation(tmp_path, kind) == "excluded"
+        assert not lease.held
+        assert _process_reservation(tmp_path, kind) == "acquired"
+
+
+def test_rest_display_seam_does_not_hold_the_stream_reservation(tmp_path):
+    with _reservation("rest", tmp_path) as lease:
+        display = LiveProducer(publisher(), lease, sip_authority="fixture entitlement")
+        assert display.lease is lease
+        assert _process_reservation(tmp_path, "stream") == "acquired"
+        with _reservation("stream", tmp_path):
+            assert _process_reservation(tmp_path, "stream") == "excluded"
+
+
+@pytest.mark.parametrize(
+    "inventory",
+    [
+        {"source": "fixture inventory"},
+        {"existing_streams": None, "source": "fixture inventory"},
+        {"existing_streams": "unknown", "source": "fixture inventory"},
+        {"existing_streams": -1, "source": "fixture inventory"},
+        {"existing_streams": True, "source": "fixture inventory"},
+        {"existing_streams": 1, "source": "fixture inventory"},
+        {"existing_streams": 0, "source": ""},
+        {"existing_streams": 0, "source": " "},
+        {"existing_streams": 0},
+    ],
+)
+def test_rest_holder_does_not_replace_sourced_zero_stream_admission(tmp_path, inventory):
+    with _reservation("rest", tmp_path):
+        assert _process_reservation(tmp_path, "stream", inventory=inventory) == "invalid inventory"
+        assert _process_reservation(tmp_path, "stream") == "acquired"
+
+
+def test_rest_exception_releases_its_pacer_without_releasing_the_stream(tmp_path):
+    with _reservation("stream", tmp_path) as stream:
+        stream_pacer = object()
+        stream.bind_pacer(stream_pacer)
+        rest = None
+        with pytest.raises(RuntimeError, match="fixture failure"):
+            with _reservation("rest", tmp_path) as rest:
+                rest.bind_pacer(object())
+                with pytest.raises(CustodyError):
+                    rest.bind_pacer(object())
+                assert _process_reservation(tmp_path, "rest") == "excluded"
+                raise RuntimeError("fixture failure")
+        assert rest is not None and not rest.held and rest.pacer is None
+        assert stream.held and stream.pacer is stream_pacer
+        assert _process_reservation(tmp_path, "rest") == "acquired"
+        assert _process_reservation(tmp_path, "stream") == "excluded"
+
+
+@pytest.mark.parametrize("slot", [1, 3, 4, True, "2", None])
+def test_rest_wrong_account_refuses_before_creating_the_lock_root(tmp_path, slot):
+    from sextant.tradingview import producer
+
+    root = tmp_path / "absent"
+    with pytest.raises(ValueError):
+        with producer.reserve_rest_display(root, paper_slot=slot):
+            pytest.fail("wrong account admitted")
+    assert not root.exists()
+
+
+def test_old_and_new_producers_do_not_exclude_each_other_during_migration(tmp_path):
+    # A deployed old producer uses the unchanged stream scope. Migration therefore
+    # requires an attended stop/release before the new producer is started.
+    with _reservation("rest", tmp_path):
+        assert _process_reservation(tmp_path, "old") == "acquired"
+    with _reservation("stream", tmp_path):
+        assert _process_reservation(tmp_path, "rest") == "acquired"
