@@ -1,0 +1,50 @@
+//@version=6
+// DISPLAY ONLY. No order generation, webhooks, alert automation, or broker access.
+// Mirrors northstar_trading/strategies/ema_cross/{signals,config}.py at
+// f19aee0ce7dbff9f2b3512937b53265059b8b611 (feat/ibkr-slice).
+// Official Pine v6 references, accessed 2026-10-23:
+// https://www.tradingview.com/pine-script-reference/v6/#fun_indicator
+// https://www.tradingview.com/pine-script-reference/v6/#fun_plotshape
+// https://www.tradingview.com/pine-script-docs/concepts/bar-states/
+// Formula parity needs identical closes, seeding/reset time and session selection.
+// Pine float != Nautilus Decimal; chart bars != internal broker trade aggregation.
+indicator("NS 2026-11-06 · ema_cross", overlay = true)
+
+int fastPeriod = input.int(10, "Fast EMA", minval = 1)
+int slowPeriod = input.int(30, "Slow EMA", minval = 2)
+int seedTime = input.time(0, "Seed/reset at or after (0 = chart start)")
+bool showTransitions = input.bool(true, "Show formula transitions (not fills)")
+if fastPeriod >= slowPeriod
+    runtime.error("Require 1 <= fast period < slow period")
+
+var float fast = na
+var float slow = na
+var int count = 0
+var bool priorAbove = false
+var bool hasPrior = false
+bool upTransition = false
+bool downTransition = false
+if barstate.isconfirmed and time >= seedTime and not na(close)
+    fast := na(fast) ? close : fast + 2.0 / (fastPeriod + 1) * (close - fast)
+    slow := na(slow) ? close : slow + 2.0 / (slowPeriod + 1) * (close - slow)
+    count += 1
+    if count >= slowPeriod
+        bool above = fast > slow
+        // The first warmed bar only establishes prior state. Equality exits an
+        // above state; ta.crossunder(fast, slow) would miss that exact boundary.
+        upTransition := hasPrior and not priorAbove and above
+        downTransition := hasPrior and priorAbove and not above
+        priorAbove := above
+        hasPrior := true
+
+plot(fast, "First-close seeded fast EMA", color = color.aqua, linewidth = 2)
+plot(slow, "First-close seeded slow EMA", color = color.orange, linewidth = 2)
+plotshape(showTransitions and upTransition, title = "Formula up transition", text = "UP",
+    style = shape.triangleup, location = location.belowbar, color = color.lime, size = size.tiny)
+plotshape(showTransitions and downTransition, title = "Formula down/equality transition", text = "DOWN",
+    style = shape.triangledown, location = location.abovebar, color = color.red, size = size.tiny)
+var table notice = table.new(position.top_right, 1, 2)
+if barstate.islast
+    table.cell(notice, 0, 0, "DISPLAY ONLY - formula transitions, not bot fills", text_color = color.white,
+        bgcolor = color.new(color.blue, 30))
+    table.cell(notice, 0, 1, "Match 1m/session/seed; warm-start bot seeds 3 x slow history bars.\nNo fixed EMA target; trailing stop stays in Nautilus.")
