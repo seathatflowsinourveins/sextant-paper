@@ -31,9 +31,8 @@ shell start command; use this reviewed unit path after landing.
    expected-account suffix. Set `B_WRITER_LEASE_ROOT` to the old writer's existing
    locks directory and `B_STREAM_LEASE_ROOT` to the producer's existing leases
    directory, as the kit specifies. Never choose fresh per-run roots: these must
-   exclude each current holder in its own location. No separate recoverable state
-   directory exists: receipt-dir contains the receipt and lifecycle journal;
-   restarting requires the
+   exclude each current holder in its own location. Receipt-dir contains the receipt
+   and lifecycle journal. Campaign recovery is unavailable; restarting requires the
    node's existing flat-start checks. Clear any stale full expected-account ID in
    the manager's environment before using a suffix; a full identity takes precedence.
 
@@ -142,3 +141,17 @@ nautilus_trader@`d53849b216e20f2c122ca01b4dd0da377638b186`
 (`ExecStart=`, `${VAR}`, `Restart=`) and
 [systemd.exec(5)](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html)
 (`EnvironmentFile=`, `WorkingDirectory=`), read 2026-11-11.
+
+For the future entry composition, `--entry-state-parameters PATH` opts into the three
+entry dependencies; neither attended unit supplies it. Copy
+`paper-b-entry-state.params.example` to a non-secret local `.params` file. This file
+is JSON registry rows, not a systemd assignment file: complete both absolute path
+values and record the operator's approval in each source. The existing approved
+`basis_state_home` and the basis file's parent must exist and be writable; resolved
+paths outside that home refuse. Keep the same `basis_path` for the intended segment
+across run/receipt directories. `SegmentBasis` writes its account/segment/params_hash
+receipt there and refuses mismatched account or same-segment parameter changes;
+it never recovers orders, positions or campaign state. No supplied option preserves
+the default protection-only path; an incomplete explicit file refuses by name.
+The option maps only B-scoped exits and the scoped paper fee model. Exit chase and
+round-trip cost remain unavailable. It neither enables ranking nor admits entries.
