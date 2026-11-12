@@ -33,7 +33,7 @@ def state_file(tmp_path):
     home = tmp_path / "state"
     home.mkdir(exist_ok=True)
     path = tmp_path / "entry-state.params"
-    rows = [
+    rows: list[dict[str, Any]] = [
         dict(
             name=name,
             value=str(value),
@@ -44,6 +44,17 @@ def state_file(tmp_path):
         )
         for name, value in (("basis_state_home", home), ("basis_path", home / "basis.json"))
     ]
+    rows.append(
+        dict(
+            name="basis_receipt_max_bytes",
+            value=4096,
+            scope="alpaca-paper-b",
+            unit="bytes",
+            source="TEST ONLY synthetic receipt admission limit; no production authority",
+            last_change="2026-11-11",
+            calibration_state="UNCALIBRATED",
+        )
+    )
     path.write_text(json.dumps(rows))
     return path, rows
 
@@ -315,3 +326,113 @@ def test_node_refuses_a_supplied_dependency_without_source(tmp_path, dependency)
         node_order.parse(cli)
     assert error.value.reason == dependency
     assert "source" in error.value.detail
+
+
+@pytest.mark.parametrize("extra", [0, 1])
+def test_existing_basis_receipt_is_admitted_only_within_its_byte_bound(tmp_path, extra):
+    file, rows = state_file(tmp_path)
+    path = tmp_path / "state/basis.json"
+    # A valid receipt with multibyte text distinguishes bytes from character count.
+    receipt = dict(
+        account="FIXTURE", basis="100", segment="fixture:é", params_hash=PARAMS.params_hash
+    )
+    payload = json.dumps(receipt, ensure_ascii=False).encode("utf-8")
+    path.write_bytes(payload)
+    rows[2]["value"] = len(payload) - extra
+    file.write_text(json.dumps(rows))
+    if extra:
+        with pytest.raises(ValueError, match="basis_receipt_max_bytes"):
+            dependencies().load_basis_path(file)
+    else:
+        admitted = dependencies().load_basis_path(file)
+        assert SegmentBasis(admitted, "FIXTURE", PARAMS).receipt == receipt
+    assert path.read_bytes() == payload
+
+
+def test_oversized_basis_receipt_is_refused_before_any_receipt_read(tmp_path, monkeypatch):
+    file, _ = state_file(tmp_path)
+    path = tmp_path / "state/basis.json"
+    with path.open("wb") as stream:
+        stream.truncate(4097)
+    original_read = type(path).read_text
+
+    def no_receipt_read(self, *args, **kwargs):
+        if self == path:
+            pytest.fail("oversized basis receipt must be refused before it is read")
+        return original_read(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(path), "read_text", no_receipt_read)
+    with pytest.raises(ValueError, match="basis_receipt_max_bytes"):
+        dependencies().load_basis_path(file)
+    assert path.stat().st_size == 4097
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        "missing",
+        "source",
+        "scope",
+        "unit",
+        "date",
+        "null",
+        "bool",
+        "float",
+        "zero",
+        "negative",
+        "string",
+        "unavailable",
+        "state_missing",
+        "duplicate",
+    ],
+)
+def test_basis_receipt_bound_requires_its_own_value_and_registry_authority(tmp_path, damage):
+    file, rows = state_file(tmp_path)
+    path = tmp_path / "state/basis.json"
+    path.write_text("{}")
+    if damage == "missing":
+        rows.pop()
+    elif damage == "duplicate":
+        rows.append(dict(rows[2]))
+    else:
+        key, value = {
+            "source": ("source", ""),
+            "scope": ("scope", "other"),
+            "unit": ("unit", "characters"),
+            "date": ("last_change", "not-a-date"),
+            "null": ("value", None),
+            "bool": ("value", True),
+            "float": ("value", 4096.0),
+            "zero": ("value", 0),
+            "negative": ("value", -1),
+            "string": ("value", "4096"),
+            "unavailable": ("calibration_state", "UNAVAILABLE"),
+            "state_missing": ("calibration_state", None),
+        }[damage]
+        rows[2][key] = value
+    file.write_text(json.dumps(rows))
+    with pytest.raises(ValueError, match="basis_receipt_max_bytes"):
+        dependencies().load_basis_path(file)
+    assert path.read_text() == "{}"
+
+
+def test_node_refuses_unsourced_receipt_admission_by_the_existing_dependency_name(tmp_path):
+    file, rows = state_file(tmp_path)
+    rows[2]["value"] = None
+    rows[2]["calibration_state"] = "UNAVAILABLE"
+    file.write_text(json.dumps(rows))
+    with pytest.raises(node_order.OrderModeRefused) as error:
+        node_order.parse([*argv(tmp_path), "--entry-state-parameters", str(file)])
+    assert error.value.reason == "basis_path"
+    assert "basis_receipt_max_bytes" in error.value.detail
+    assert not (tmp_path / "state/basis.json").exists()
+
+
+def test_existing_receipt_without_a_registered_bound_is_never_admitted(tmp_path):
+    file, rows = state_file(tmp_path)
+    path = tmp_path / "state/basis.json"
+    path.write_bytes(b" " * 4097)
+    file.write_text(json.dumps(rows[:2]))
+    with pytest.raises(ValueError, match="basis_receipt_max_bytes"):
+        dependencies().load_basis_path(file)
+    assert path.stat().st_size == 4097

@@ -147,3 +147,159 @@ def test_a_count_that_cannot_be_taken_changes_no_result():
 def test_a_malformed_trace_never_raises_from_the_node():
     broken = NS(report_trace={"orders": {"error": "ValueError", "requests": None}})
     node_order.startup_cause([broken])  # Must not raise; the run's own failure stands.
+
+
+@pytest.mark.parametrize("fault_type", [RuntimeError, asyncio.CancelledError])
+def test_recorder_enrichment_fault_preserves_the_generator_error(monkeypatch, fault_type):
+    def broken(error):
+        raise fault_type("fixture recorder fault")
+
+    monkeypatch.setattr(client_module(), "_reason", broken)
+
+    async def run():
+        node, error = client(), ValueError("fixture generator failure")
+        with pytest.raises(ValueError) as raised:
+            await _raising(error)(node, SCOPE)
+        assert raised.value is error
+        assert node.report_trace["positions"]["recorder_error"] == fault_type.__name__
+        assert client_module()._STAGE.get() is None
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_recorder_setup_fault_does_not_replace_the_generator_outcome(fails):
+    async def run():
+        node, result, error = client(), object(), ValueError("fixture generator failure")
+        node.report_trace = None
+
+        async def generator(self, command):
+            if fails:
+                raise error
+            return result
+
+        wrapped = client_module()._traced("positions")(generator)
+        if fails:
+            with pytest.raises(ValueError) as raised:
+                await wrapped(node, SCOPE)
+            assert raised.value is error
+        else:
+            assert await wrapped(node, SCOPE) is result
+        assert client_module()._STAGE.get() is None
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("fault_type", [RuntimeError, asyncio.CancelledError])
+@pytest.mark.parametrize("fails", [False, True])
+def test_recorder_warning_fault_preserves_the_generator_outcome(monkeypatch, fault_type, fails):
+    def broken(*args, **kwargs):
+        raise fault_type("fixture logger fault")
+
+    monkeypatch.setattr(client_module(), "Logger", broken)
+
+    async def run():
+        node, result, error = client(), object(), ValueError("fixture generator failure")
+
+        async def generator(self, command):
+            self.report_trace["positions"]["skipped_unloaded"] = 1
+            if fails:
+                raise error
+            return result
+
+        wrapped = client_module()._traced("positions")(generator)
+        if fails:
+            with pytest.raises(ValueError) as raised:
+                await wrapped(node, SCOPE)
+            assert raised.value is error
+        else:
+            assert await wrapped(node, SCOPE) is result
+        assert client_module()._STAGE.get() is None
+
+    asyncio.run(run())
+
+
+def test_generator_cancellation_is_recorded_and_propagates_unchanged():
+    async def run():
+        node, error = client(), asyncio.CancelledError("fixture generator cancellation")
+        with pytest.raises(asyncio.CancelledError) as raised:
+            await _raising(error)(node, SCOPE)
+        assert raised.value is error
+        assert node.report_trace["positions"]["error"] == "CancelledError"
+        assert client_module()._STAGE.get() is None
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("fault_type", [RuntimeError, asyncio.CancelledError])
+def test_row_count_fault_is_recorded_without_changing_the_result(fault_type):
+    class Uncountable(list):
+        def __len__(self):
+            raise fault_type("fixture length fault")
+
+    async def run():
+        node, result = client(), Uncountable()
+
+        async def answer(*args, **kwargs):
+            return result
+
+        node.gateway.call = answer
+
+        async def generator(self, command):
+            return await self._call(None, "get", "/positions")
+
+        assert await client_module()._traced("positions")(generator)(node, SCOPE) is result
+        entry = node.report_trace["positions"]
+        assert entry["recorder_error"] == fault_type.__name__
+        assert entry["requests"]["/positions"]["rows"] is None
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_request_count_fault_is_recorded_without_changing_the_call(fails):
+    async def run():
+        node, result, error = client(), [], ValueError("fixture gateway failure")
+
+        async def answer(*args, **kwargs):
+            if fails:
+                raise error
+            return result
+
+        node.gateway.call = answer
+
+        async def generator(self, command):
+            self.report_trace["positions"]["requests"] = None
+            return await self._call(None, "get", "/positions")
+
+        wrapped = client_module()._traced("positions")(generator)
+        if fails:
+            with pytest.raises(ValueError) as raised:
+                await wrapped(node, SCOPE)
+            assert raised.value is error
+        else:
+            assert await wrapped(node, SCOPE) is result
+        assert node.report_trace["positions"]["recorder_error"] == "AttributeError"
+
+    asyncio.run(run())
+
+
+def test_startup_trace_cancellation_is_a_recorder_fault():
+    class Broken:
+        @property
+        def report_trace(self):
+            raise asyncio.CancelledError("fixture trace cancellation")
+
+    assert node_order.startup_cause([Broken()]) == {"recorder_error": "CancelledError"}
+
+
+def test_startup_error_line_cancellation_preserves_the_trace(monkeypatch):
+    class BrokenStderr:
+        def write(self, text):
+            raise asyncio.CancelledError("fixture output cancellation")
+
+    entry = dict(error="ValueError", requests={})
+    monkeypatch.setattr(node_order.sys, "stderr", BrokenStderr())
+    trace = node_order.startup_cause([NS(report_trace={"positions": entry})])
+    assert trace is not None
+    assert trace["positions"] is entry
