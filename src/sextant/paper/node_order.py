@@ -77,7 +77,13 @@ from sextant.entry.parameters import EntryParameters
 from sextant.execution.custody import AccountScope, CustodyError, WriterLease
 from sextant.execution.pacer import ActionKind
 from sextant.execution.state import write_atomic
+from sextant.exits.policy import ExitParams
 from sextant.paper import node_rank
+from sextant.paper.b_entry_dependencies import (
+    load_basis_path,
+    load_exit_params,
+    sizing_commission_rate,
+)
 from sextant.paper.b_lifecycle import BLifecycle, BLifecycleConfig, Journal
 from sextant.paper.b_protector import load_b_parameters
 from sextant.paper.b_protector_main import (
@@ -129,6 +135,8 @@ class Rows:
     pacing: list[dict[str, Any]]
     entry: EntryParameters | None
     steps: dict[str, str]
+    exit: ExitParams | None = None
+    commission_rate: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -153,6 +161,7 @@ class OrderArguments:
     lease_source: str
     universe: tuple[InstrumentId, ...] = ()  # the claim list, read after the leases
     universe_source: str = "not read"
+    basis_path: Path | None = None
     ranking: node_ranking.RankingArguments | None = None
     attended: AttendedEntry | None = None
 
@@ -235,6 +244,7 @@ def parse(argv: list[str] | None = None) -> OrderArguments:
         prog="python -m sextant.paper.node_order", allow_abbrev=False, exit_on_error=False
     )
     parser.add_argument("--attended-test-entry", metavar="INSTRUMENT")
+    parser.add_argument("--entry-state-parameters", type=Path)
     required = parser.add_argument_group("required")
     for flag, kind in (
         ("--account-config", Path),
@@ -297,6 +307,26 @@ def parse(argv: list[str] | None = None) -> OrderArguments:
     if account.lane != "alpaca-paper-b":
         raise OrderModeRefused("registries", "the account config is not Paper B's")
     rows = load_rows(raw)
+    basis_path = None
+    if raw.entry_state_parameters is not None:
+        loaded = {}
+        for name, loader, path in (
+            ("exit_params", lambda p: load_exit_params(_rows(p)), raw.exit_parameters),
+            ("commission_rate", lambda p: sizing_commission_rate(_rows(p)), raw.node_parameters),
+            ("basis_path", load_basis_path, raw.entry_state_parameters),
+        ):
+            try:
+                loaded[name] = loader(path)
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                raise OrderModeRefused(name, str(error)) from error
+        basis_path = loaded["basis_path"]
+        steps = rows.steps | {
+            "gain_lock": "off: round_trip_cost and exit chase UNAVAILABLE; "
+            "B ExitParams loaded for entry buffer only"
+        }
+        rows = replace(
+            rows, exit=loaded["exit_params"], commission_rate=loaded["commission_rate"], steps=steps
+        )
     try:
         ranking = node_rank.load(raw)
     except (ValueError, OSError, KeyError, TypeError) as error:
@@ -313,6 +343,7 @@ def parse(argv: list[str] | None = None) -> OrderArguments:
         raw.stream_lease_root,
         raw.existing_streams,
         raw.lease_source,
+        basis_path=basis_path,
         ranking=ranking,
         attended=load_attended(raw),
     )
@@ -682,6 +713,9 @@ def strategy_config(
         rank_gate=RANK_GATE_ENABLED,
         journal=journal,
         entry_params=args.rows.entry,
+        exit_params=args.rows.exit,
+        commission_rate=args.rows.commission_rate,
+        basis_path=args.basis_path,
         native_trail_fraction=args.rows.native,
         width_rows=args.rows.width,
     )
