@@ -1,0 +1,101 @@
+{
+  "schema": "k2-ranking.registry/1",
+  "rows": [
+    {
+      "name": "mover_min_move",
+      "unit": "fraction",
+      "value": "0.03",
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:26 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "mover_min_trades_accel",
+      "unit": "ratio",
+      "value": "1.5",
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:27 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "mover_min_dvol_ratio",
+      "unit": "ratio",
+      "value": "3",
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:28 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "move_1m_window_s",
+      "unit": "seconds",
+      "value": 60,
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:29 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "move_5m_window_s",
+      "unit": "seconds",
+      "value": 300,
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:30 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "trades_accel_window_s",
+      "unit": "seconds",
+      "value": 60,
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:31 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "trades_accel_baseline_min",
+      "unit": "minutes",
+      "value": 5,
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:32 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "publish_min_interval_s",
+      "unit": "seconds",
+      "value": 1,
+      "source": "seathatflowsinourveins/northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/registry.py:33 (MoverConfig; UNCALIBRATED starts from ARCH LEAD #413, :1,34)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "generation_max_age_s",
+      "unit": "seconds",
+      "value": 1200,
+      "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/tradingview/research.py:read_research_inputs/_envelope (\"Research freshness 1,200s; age equal to limit refuses\", docs/tradingview.md Display parameter registry); display deployment only; the trading/entry deployment's ages stay UNAVAILABLE until sourced",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "heartbeat_max_age_s",
+      "unit": "seconds",
+      "value": 1200,
+      "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/tradingview/research.py:read_research_inputs/_envelope (\"Research freshness 1,200s; age equal to limit refuses\", docs/tradingview.md Display parameter registry; a display unit older than that is refused by the sync anyway); display deployment only; the trading/entry deployment's ages stay UNAVAILABLE until sourced",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "input_max_age_s",
+      "unit": "seconds",
+      "value": 600,
+      "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/tradingview/research.py:_envelope (\"Snapshot lag ≤600s\", docs/tradingview.md Display parameter registry); display deployment only; the trading/entry deployment's ages stay UNAVAILABLE until sourced",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    },
+    {
+      "name": "top_n",
+      "unit": "symbols",
+      "value": 100,
+      "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/scanner/s2_tap.py:85 (S2TapConfig.shortlist_size, the publisher shortlist; also :519); display contract caps NS movers/parent at 100 and ADR-0021 bounds named lists at 1000",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-09"
+    }
+  ]
+}

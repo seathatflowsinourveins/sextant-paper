@@ -1,0 +1,110 @@
+[
+  {
+    "name": "prearm_buffer_fraction",
+    "unit": "fraction of entry",
+    "value": "0.01",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:251",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "prearm_range_multiple",
+    "unit": "multiple of eligible-trade range",
+    "value": "1",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:252",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "prearm_range_window_s",
+    "unit": "seconds in the eligible-trade range window",
+    "value": "10",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:253",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "gain_lock_giveback_fraction",
+    "unit": "fraction of the eligible high above entry",
+    "value": "0.1",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:140",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "round_trip_cost",
+    "unit": "expected per-share round-trip cost, including spread, size/session slippage and fees",
+    "value": null,
+    "source": "UNAVAILABLE until transaction-cost analysis sets it: docs/adr/0025-gain-protection-and-fast-exit.md:27 (Expected fill: B's level includes entry plus expected spread, size/session slippage and fees; TCA sets the cost rows); northstar-trading@paper 8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-b-gain-protection-replay.md, Sections 1 and 7. The fees-plus-one-tick formula at northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:94 applies only while this row is unset and is not B's measured cost; one tick is instrument-dependent, so no literal stands in for it. While unset, B's gain lock never arms (src/sextant/paper/b_gain_lock.py) and the pre-arm trigger keeps protecting",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "breach_persist_count",
+    "unit": "observations",
+    "value": 3,
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:100",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "breach_persist_span_s",
+    "unit": "seconds",
+    "value": "1",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:100",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "chase_min_interval_s",
+    "unit": "seconds",
+    "value": null,
+    "source": "UNAVAILABLE: Shared src/sextant/exits/policy.py REGISTRY; docs/adr/0005-exit-engine.md X5; no value at either pin (#98). While unset, ExitParams.chase_on is false (src/sextant/exits/policy.py), so B never amends its exit LIMIT toward the bid; the persisted-breach sale still sends its LIMIT at the policy's level. chase_cap_fraction is absent from this file, so it is unavailable for B's exit too (LEAD-0310 ruling 6)",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "take_profit_above_h_fraction",
+    "unit": "fraction of H",
+    "value": "0.10",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; docs/adr/0005-exit-engine.md X5",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "take_profit_step_fraction",
+    "unit": "fraction of H",
+    "value": "0.02",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; docs/adr/0005-exit-engine.md X5",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "backstop_min_separation_fraction",
+    "unit": "fraction",
+    "value": "0.05",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-trading@7c5f852a2816bbaa5896241a93bab9de7cf7bb4f:docs/adr/0019-managed-exits-and-ranked-reentry.md:107",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  },
+  {
+    "name": "quote_max_age_s",
+    "unit": "seconds (RTH; 2 outside)",
+    "value": "1",
+    "source": "Shared src/sextant/exits/policy.py REGISTRY; northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:src/northstar_lanes/parameters.py:15",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "scope": "alpaca-paper-b"
+  }
+]

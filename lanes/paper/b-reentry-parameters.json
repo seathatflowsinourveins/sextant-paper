@@ -1,0 +1,66 @@
+[
+  {
+    "name": "cooldown_seconds",
+    "unit": "seconds counted from the flat receipt",
+    "value": "600",
+    "source": "northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:configs/paper/profiles.yaml:55 (the aggressive profile, lane alpaca-paper-b at :8-9: 600, \"lead's call, spec §8\"); northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0007-reentry-and-rotation.md:42 (counted from the flat receipt, never from the sell); docs/adr/0006-reentry-and-rotation.md R1",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "retry_rank_band",
+    "unit": "parent ranks",
+    "value": null,
+    "source": "UNAVAILABLE: no start at either pin. northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0007-reentry-and-rotation.md:102-103 names the row and leaves its value to the registry; northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-lanes-rule-conformance.json:912 finds it unnamed in both repositories (rotation_rank_gap at profiles.yaml:53 is a different rule). What sets it: a reviewed start from the re-entry calibration (ADR-0018)",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "rotation_rank_band",
+    "unit": "parent ranks",
+    "value": null,
+    "source": "UNAVAILABLE: no start at either pin. northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0007-reentry-and-rotation.md:102-103; northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-lanes-rule-conformance.json:921 (unnamed in both). What sets it: a reviewed start from the re-entry calibration",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "reentry_min_confidence",
+    "unit": "confidence in [0, 1]",
+    "value": null,
+    "source": "UNAVAILABLE: no start at either pin. northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0007-reentry-and-rotation.md:89 and :107; northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-lanes-rule-conformance.json:1066 (unnamed in both). What sets it: a reviewed start from the re-entry calibration",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "confidence_size_floor",
+    "unit": "risk multiplier floor in [0, 1]",
+    "value": null,
+    "source": "UNAVAILABLE: no start at either pin. northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0007-reentry-and-rotation.md:89-92 (a re-entry scales its size with confidence; confidence is never assumed and the multiplier is never skipped); northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-lanes-rule-conformance.json:580 (unnamed in both). The entry file's 1 (lanes/paper/b-entry-parameters.json) is the unscored first leg's identity, which size_entry never applies without a confidence; it is not a re-entry start. What sets it: a reviewed start from the re-entry calibration",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "rotation_lift_margin_bps",
+    "unit": "basis points of notional",
+    "value": null,
+    "source": "UNAVAILABLE: no start at either pin. northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0007-reentry-and-rotation.md:63 and :108 (the 40 bps lift at :142 is a synthetic fixture); northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-lanes-rule-conformance.json:1115 (unnamed in both). What sets it: TCA's round-trip cost plus a reviewed margin",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "rotation_score_ratio",
+    "unit": "score ratio, at least one",
+    "value": null,
+    "source": "UNAVAILABLE: no start at either pin. docs/adr/0004-entry.md:24 (N6); northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-lanes-rule-conformance.json:598 (unnamed in both). What sets it: a reviewed start from the rotation calibration",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "whipsaw_stopouts_max",
+    "unit": "consecutive pre-arm stop-outs",
+    "value": null,
+    "source": "UNAVAILABLE: no start at either pin. northstar-lanes@00203275944a22655b3e14b221cfde9a265d549a:docs/adr/0007-reentry-and-rotation.md:140 is a witness case (after two consecutive pre-arm stop-outs a rising re-entry is refused): it bounds a start at two or less and records none, and a witness supplies no default authority; northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:docs/research/2026-11-03-lanes-rule-conformance.json:975 (unnamed in both). What sets it: a reviewed start from the re-entry calibration",
+    "calibration_state": "UNAVAILABLE",
+    "last_change": "2026-11-11"
+  }
+]
