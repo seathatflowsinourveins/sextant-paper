@@ -6,8 +6,12 @@ coverage hides the gap; forgetting refusal state loses the no-ask receipt.
 
 from __future__ import annotations
 
+import asyncio
 import gc
 import json
+import os
+import signal
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -352,6 +356,96 @@ def test_no_usable_ask_has_named_outcome_without_consuming_attempt(tmp_path, mon
     }
 
 
+@pytest.mark.parametrize("early_signal", [False, True])
+def test_node_duration_and_sigterm_keep_fill_handling_running(tmp_path, monkeypatch, early_signal):
+    class DelayedCancel(AccountVenue):
+        def delete(self, path, body):
+            # Keep the cancellation pending until the fixture's late fill wins.
+            self.requests.append(("DELETE", path, {}))
+
+    venue, seen = DelayedCancel(), {}
+    stand = Stand(venue)
+    verify = node_order.GatedBLifecycle._verify
+    args = replace(opted(tmp_path), duration_s=10 if early_signal else 1)
+
+    async def admitted(strategy):
+        from copy import deepcopy
+        from datetime import UTC, datetime
+
+        await verify(strategy)
+        seen["strategy"] = strategy
+        now = strategy.clock.timestamp_ns()
+        strategy.on_quote(
+            QuoteTick(
+                IID,
+                Price.from_str("0.1230"),
+                Price.from_str("0.1234"),
+                Quantity.from_int(100),
+                Quantity.from_int(100),
+                now,
+                now,
+            )
+        )
+
+        async def late_fill():
+            await asyncio.sleep(0.2 if early_signal else 1.1)
+            if early_signal:
+                os.kill(os.getpid(), signal.SIGTERM)
+                await asyncio.sleep(0.1)
+            row = next(r for r in venue.rows.values() if r["side"] == "buy")
+            now = strategy.clock.timestamp_ns()
+            # Native risk requires the trade in cache; use the retained data client below.
+            seen["data"]._handle_data(
+                TradeTick(
+                    IID,
+                    Price.from_str("0.1234"),
+                    Quantity.from_int(100),
+                    AggressorSide.BUY,
+                    TradeId("cached"),
+                    now,
+                    now,
+                )
+            )
+            row.update(status="filled", filled_qty="1", filled_avg_price="0.1234")
+            await strategy.gate.clients[0]._on_trade_update(
+                {
+                    "stream": "trade_updates",
+                    "data": {
+                        "event": "fill",
+                        "order": deepcopy(row),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "execution_id": "late-fill",
+                        "price": "0.1234",
+                        "qty": "1",
+                    },
+                }
+            )
+
+        strategy.gate.clients[0].create_task(late_fill(), "late-fill")
+
+    create = stand.data.create
+
+    def keep(**kwargs):
+        data = create(**kwargs)
+        seen["data"] = data
+        return data
+
+    stand.data.create = staticmethod(keep)
+    monkeypatch.setattr(node_order.GatedBLifecycle, "_verify", admitted)
+    path, code = node_order.run(
+        args,
+        consumer=None,
+        leases=node_order.take_leases,
+        data_factory=stand.data,
+        exec_factory=stand.exec,
+        timing=TIMING | {"delay_post_stop_secs": 1},
+    )
+    trails = [r for r in venue.rows.values() if r["type"] == "trailing_stop"]
+    assert code == 0, json.loads(path.read_text())
+    assert len(trails) == 1 and trails[0]["status"] == "new", trails
+    assert len([r for r in venue.requests if r[0] == "DELETE"]) == 1
+
+
 def test_missing_book_finishes_stop_with_named_failure(capsys):
     got = race(no_book=True, no_cross=True)
     assert got["state"] == "ComponentState.STOPPED"
@@ -427,3 +521,68 @@ def test_unattended_path_starts_timer_then_runs_native_node(tmp_path, monkeypatc
     )
     assert calls == ["timer.start", "node.run", "timer.cancel", "dispose"]
     assert code == 0 and json.loads(path.read_text())["phase"] == "stopped"
+
+
+@pytest.mark.parametrize("fault", ["unresolved", "no_book", "cancel_error", "done_error"])
+def test_node_sequence_failure_stops_nonzero_with_counts(tmp_path, monkeypatch, capsys, fault):
+    class Pending(AccountVenue):
+        def delete(self, path, body):
+            self.requests.append(("DELETE", path, {}))
+
+    stand = Stand(Pending())
+    verify = node_order.GatedBLifecycle._verify
+
+    async def admitted(strategy):
+        await verify(strategy)
+        if fault == "no_book":
+            strategy.books.pop(IID)
+            return
+        now = strategy.clock.timestamp_ns()
+        strategy.on_quote(
+            QuoteTick(
+                IID,
+                Price.from_str("0.1230"),
+                Price.from_str("0.1234"),
+                Quantity.from_int(100),
+                Quantity.from_int(100),
+                now,
+                now,
+            )
+        )
+        if fault == "cancel_error":
+
+            def bad_cancel(_cid):
+                raise RuntimeError("fixture cancel failure")
+
+            monkeypatch.setattr(strategy, "_cancel", bad_cancel)
+        if fault == "done_error":
+            original = strategy._held
+
+            def bad_read(book):
+                if strategy.attended_stopping:
+                    raise RuntimeError("fixture coverage failure")
+                return original(book)
+
+            monkeypatch.setattr(strategy, "_held", bad_read)
+
+    monkeypatch.setattr(node_order.GatedBLifecycle, "_verify", admitted)
+    path, code = node_order.run(
+        opted(tmp_path),
+        consumer=None,
+        leases=node_order.take_leases,
+        data_factory=stand.data,
+        exec_factory=stand.exec,
+        timing=TIMING,
+    )
+    body = json.loads(path.read_text())
+    want = (
+        {"entry_pending": 1, "unprotected_shares": 0}
+        if fault == "unresolved"
+        else {
+            "book_missing" if fault == "no_book" else "sequence_errors": 1,
+        }
+    )
+    assert code == 2 and body["phase"] == "failed"
+    assert body["reason"] == "entry_unresolved_at_stop"
+    assert body["entry_unresolved_at_stop"] == want
+    assert capsys.readouterr().err.count("ERROR entry_unresolved_at_stop") == 1
