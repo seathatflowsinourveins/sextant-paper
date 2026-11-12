@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from sextant.tradingview.auth import official_client
-from sextant.tradingview.cadence import Cadence
+from sextant.tradingview.cadence import Cadence, next_display_open
 from sextant.tradingview.inputs import (
     DISPLAY_PAPER_SLOT,
     ET,
@@ -99,6 +99,10 @@ def _landed_sha(root: Path) -> str:
 def _pre_open(now: datetime, params: Mapping[str, int]) -> datetime | None:
     """Today's display open when the clock is before it on an XNYS session day."""
     local = now.astimezone(ET)
+    if params["overnight_enabled"]:
+        return datetime.fromtimestamp(
+            next_display_open(_ns(now), overnight_enabled=True) // 1_000_000_000, ET
+        )
     start = params["display_start_minute_et"]
     if local.hour * 60 + local.minute >= start:
         return None
@@ -179,7 +183,7 @@ async def serve(
                     "at the next 04:00 ET session open."
                 )
                 return 0
-            await sleep(max(0.0, (opens - now).total_seconds()))
+            await sleep(max(0.0, (_ns(opens) - _ns(now)) / 1_000_000_000))
             continue
         ticks += 1
         try:
