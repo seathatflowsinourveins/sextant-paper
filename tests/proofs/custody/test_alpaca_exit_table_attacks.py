@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 from alpaca.common.exceptions import APIError
-from nautilus_trader.model import ClientOrderId, OrderStatus
+from nautilus_trader.model import ClientOrderId, OrderStatus, Price
 
-from sextant.alpaca.execution import IncompleteCoverage
+from sextant.alpaca.execution import AlpacaExecutionClient, IncompleteCoverage
 
 from .test_alpaca_client import client
 from .test_alpaca_execution import command, order
@@ -94,5 +94,41 @@ def test_windowed_listing_retains_good_sibling_and_bad_payload(malformed):
             assert not node.coverage_complete
         finally:
             await node._disconnect()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("how", ["disconnect", "task_cancel", "wait_for", "closing"])
+def test_unsent_modify_has_exactly_one_refusal_and_no_patch(how):
+    async def run():
+        node = client()
+        await node._submit_order(SimpleNamespace(order=order(), params={}))
+        venue = node.gateway.sdk
+        node.gateway.pacer.bucket.tokens = 0
+        change = command(
+            client_order_id=ClientOrderId("fixture-entry"),
+            venue_order_id=None,
+            price=Price.from_str("0.1235"),
+        )
+        if how == "closing":
+            await node._disconnect()
+            with pytest.raises(RuntimeError, match="closing"):
+                await AlpacaExecutionClient._modify_order(node, change)
+        else:
+            await AlpacaExecutionClient._modify_order(node, change)
+            (task,) = tuple(node._actions)
+            if how == "disconnect":
+                await node._disconnect()
+            elif how == "task_cancel":
+                task.cancel()
+            else:
+                with pytest.raises(TimeoutError):
+                    await asyncio.wait_for(task, 0.01)
+            await asyncio.gather(task, return_exceptions=True)
+            await asyncio.sleep(0)
+            await node._disconnect()
+        node.generate_order_modify_rejected.assert_called_once()
+        assert not any(method == "PATCH" for method, _, _ in venue.requests)
+        assert not node._proposals
 
     asyncio.run(run())
