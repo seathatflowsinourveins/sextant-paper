@@ -1,0 +1,57 @@
+[
+  {
+    "name": "native_max_order_submit_rate",
+    "unit": "native_commands/window",
+    "value": "100/00:00:01",
+    "source": "nautechsystems/nautilus_trader@55c0e82053142bce3a5cba4de4221d3929c2d3bc:LiveRiskEngineConfig default; not an account wire entitlement",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-06"
+  },
+  {
+    "name": "native_max_order_modify_rate",
+    "unit": "native_commands/window",
+    "value": "100/00:00:01",
+    "source": "nautechsystems/nautilus_trader@55c0e82053142bce3a5cba4de4221d3929c2d3bc:LiveRiskEngineConfig default; not an account wire entitlement",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-06"
+  },
+  {
+    "name": "native_inflight_check_interval_ms",
+    "unit": "milliseconds; 0 disables synthetic inflight expiry",
+    "value": 0,
+    "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:nodes/alpaca.py and nodes/ibkr.py; ADR-0007 unknown outcomes retain exposure",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-06"
+  },
+  {
+    "name": "paper_us_equity_commission_per_fill",
+    "unit": "USD per fill",
+    "value": "0",
+    "account_scope": "paper",
+    "asset_class": "us_equity",
+    "currency": "USD",
+    "source": "Alpaca Brokerage Fee Schedule (https://files.alpaca.markets/disclosures/library/BrokFeeSched.pdf, revised 2026-10-12, read 2026-11-11) p.1: \"Alpaca Securities does not charge commissions, except as described below. Commissions apply to index options trades, use of the Elite Smart Router under the Alpaca Elite offering, and order flow determined to be non-retail in nature.\"; https://alpaca.markets/algotrading, read 2026-11-11: \"there are no commission charges for Alpaca self-directed individual cash brokerage accounts that trade U.S.-listed securities and options through an API\"; https://docs.alpaca.markets/us/docs/paper-trading, read 2026-11-11: \"Paper trading works the same way as live trading end to end - except the order is not routed a live exchange.\" Covers paper accounts, US-listed equities and standard routing only; Elite Smart Router routing, non-retail order flow and the live account's fees are NOT covered",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "paper_us_equity_regulatory_fees_per_fill",
+    "unit": "USD per fill",
+    "value": "0",
+    "account_scope": "paper",
+    "asset_class": "us_equity",
+    "currency": "USD",
+    "source": "https://docs.alpaca.markets/us/docs/paper-trading, read 2026-11-11: \"Specifically, paper trading does not account for:\" listing \"Regulatory fees\" (SEC fee, FINRA TAF and CAT, per https://docs.alpaca.markets/us/docs/regulatory-fees, read 2026-11-11). A live account accrues these per account per day and posts them at end of day (BrokFeeSched.pdf p.4, read 2026-11-11), not per fill, so the live account's fees are NOT covered by this row",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11"
+  },
+  {
+    "name": "attended_test_entry_qty",
+    "unit": "whole shares; attended test only, not sizing",
+    "value": 1,
+    "source": "LEAD-1452 section 1 (2026-11-11); lanes/paper/README.md:30-32 plain LIMIT managed-paper entry; test quantity, no sizing or merit claim",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-11",
+    "lane_scope": "alpaca-paper-b"
+  }
+]

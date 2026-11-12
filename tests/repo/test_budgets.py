@@ -1,14 +1,14 @@
 """Paper harness budgets, adopted from the template; changes need a sourced PR.
 
-SOURCE_LINE_CAP is a deliberately closed placeholder: no trading source is imported
-in this adaptation. The lead replaces this one value from the measured closure report
-before the package import PRs. It is not a measured production budget.
+SOURCE_LINE_CAP is the lead's uncalibrated 25,000-line starting cap (LEAD-1915,
+2026-11-11), based on the approved closure report; it ratchets down after the
+move-only splits. See docs/landscape.md and docs/import-evidence.md.
 """
 
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
-SOURCE_LINE_CAP = 0
+SOURCE_LINE_CAP = 25_000
 
 
 def _lines(path: Path) -> int:

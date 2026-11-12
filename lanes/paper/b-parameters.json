@@ -1,0 +1,106 @@
+[
+  {
+    "name": "native_trail_fraction",
+    "unit": "fraction below the high-water mark (Alpaca trail_percent / 100)",
+    "value": "0.025",
+    "source": "docs/adr/0025-gain-protection-and-fast-exit.md B scope (0.025 cap); the trailing pattern is upstream (nautechsystems/nautilus_trader v1.231.0 nautilus_trader/examples/strategies/ema_cross_trailing_stop.py), the 2.5% level is ours; reviewed B registry 2026-11-07; UNCALIBRATED until PR-4 tunes it",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "reconcile_interval_s",
+    "unit": "seconds between scheduled B reconciles",
+    "value": "10",
+    "source": "docs/adr/0007-custody-and-order-writing.md C1-C2 (claim and protect immediately); lead decision 2026-11-07: 10 s reconcile interval; UNCALIBRATED until PR-4",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-09"
+  },
+  {
+    "name": "feed_poll_interval_s",
+    "unit": "seconds between REST latest quote and trade polls",
+    "value": "1",
+    "source": "Alpaca 24/5 trading and Market Data API docs read 2026-11-09 (Algo Trader Plus: 10,000 historical calls/min; one batched quote and one batched trade per poll); lead decision 2026-11-09; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-09"
+  },
+  {
+    "name": "feed_silence_s",
+    "unit": "seconds without a successful outside-RTH poll before the watchdog pages",
+    "value": "5",
+    "source": "lead decision 2026-11-09 (M4 outside-RTH witness; a quiet poller must page while protection is unarmed); the release's own freshness bound is OUTSIDE_QUOTE_MAX_AGE_S = 2 s in src/sextant/paper/outside_rth.py:29 (the quote_max_age_s row cited there), used only when no successful poll can vouch for the standing quote; 5 s is an uncalibrated poll-liveness bound that tolerates the 1 s poll plus jitter; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-09"
+  },
+  {
+    "name": "tape_read_timeout_s",
+    "unit": "seconds of requests' connect and read timeout on each historical tape request at process start",
+    "value": "3.05",
+    "source": "requests docs, Advanced Usage > Timeouts, read 2026-11-10, requests 2.34.2 installed (connect timeouts slightly larger than a multiple of 3, the TCP retransmission window, with the 3.05 example; one value bounds connect and each read; neither is wall clock); applied through a mounted requests HTTPAdapter (Advanced Usage > Transport Adapters) on alpaca-py v0.44.0's RESTClient session (alpaca/common/rest.py:69,195); lead ruling LEAD-0010 R3; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "tape_max_quotes",
+    "unit": "quotes per page of the historical tape read at process start (one page is one request); a window larger than one page is read over further pages, newest first",
+    "value": "10000",
+    "source": "alpacahq/alpaca-py v0.44.0 alpaca/common/rest.py:368-408 (_get_marketdata page_limit = 10,000 rows a page; page_token in and next_page_token out at :381,388,398) and alpaca/data/requests.py:40 (sort; Sort.DESC at alpaca/common/enums.py:36-38); a page over this bound is malformed; lead rulings LEAD-0010 R3 and b-tape-pages R1/R4/R5; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "tape_deadline_s",
+    "unit": "seconds of one hard elapsed deadline over the whole start read, trading calls included: a request starts only while one tape_read_timeout_s still fits before it, and a main-thread ITIMER_REAL interval timer ends the read at it, so B's first reconcile begins within this many seconds of the read's start (that reconcile then runs under the trading clients' own transport timeouts)",
+    "value": "10",
+    "source": "the reconcile_interval_s row (10 s): B starts protecting no later than one reconcile interval after start; Python time.monotonic docs and the signal module's setitimer example (docs.python.org/3/library/signal.html, read 2026-11-10; PEP 475: a call interrupted by a handler that raises is not retried); lead rulings LEAD-0041 G1 and LEAD-0079; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "tape_max_requests",
+    "unit": "paced requests the whole start read may spend (positions, orders and every quote page); the rest of the account burst is left to the first reconcile",
+    "value": "8",
+    "source": "lanes/limits.yaml alpaca-paper-b order_actions_budget_per_min 180 and BudgetControls burst = budget // 10 = 18 (src/sextant/paper/b_protector_main.py); 8 leaves 10 tokens for the first reconcile's positions, open-orders and arming calls, so one held position reads at most 6 quote pages (8 - 1 positions - 1 orders), 60,000 rows at tape_max_quotes; lead rulings LEAD-0041 G6 and b-tape-pages R5; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "alpaca_min_trail_fraction",
+    "unit": "lower bound on each symbol's dynamic trail fraction (trail_percent / 100)",
+    "value": "0.001",
+    "source": "docs/handbook/lessons.jsonl:52 (2026-10-29 paper trade: very tight trails floored at 0.1%, paper fills at trail_percent 0.12, 0.21 and 0.10): observed on paper, not documented; no broker page states a trail_percent minimum or precision (read 2026-11-10), so this bound is ours, not a broker rule; the percent sent is rounded up (wider) to two decimals, also ours; lead ruling LEAD-1021 items 1-2; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "trail_atr_period",
+    "unit": "completed bars in Nautilus Wilder AverageTrueRange(period)",
+    "value": "22",
+    "source": "docs/adr/0005-exit-engine.md:28,71 (ATR22 on 5m bars; northstar-lanes@00203275944a:docs/adr/0006-exit-engine.md:125,298-332) and nautechsystems/nautilus_trader@d53849b216e20f2c122ca01b4dd0da377638b186 nautilus_trader/indicators/volatility.pyx (Wilder 1978); UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "trail_atr_bar_minutes",
+    "unit": "minutes per completed bar feeding Wilder AverageTrueRange",
+    "value": "5",
+    "source": "docs/adr/0005-exit-engine.md:28,71 (ATR22(5m)) and docs/adr/0025-gain-protection-and-fast-exit.md:28 (1/5-minute ATR14/22 grid); UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "trail_atr_multiple",
+    "unit": "multiple of Wilder ATR divided by basis price",
+    "value": "3",
+    "source": "docs/adr/0005-exit-engine.md:71 (small_distance_atr_multiple UNCALIBRATED start 3) and nautechsystems/nautilus_trader@d53849b216e20f2c122ca01b4dd0da377638b186 nautilus_trader/examples/strategies/ema_cross_trailing_stop.py (trailing_atr_multiple); UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  },
+  {
+    "name": "tape_max_bars",
+    "unit": "bars per batched bars page, all held symbols together (Alpaca's limit counts every symbol)",
+    "value": "10000",
+    "source": "alpacahq/alpaca-py@v0.44.0 cc4cb3b7ba50ae250e621983c2779047fb16bb28 alpaca/common/rest.py:368-408 (page_limit 10,000, the page's maximum) and docs.alpaca.markets/reference/stockbars (limit counts all symbols; read 2026-11-10), the same bound as tape_max_quotes; UNCALIBRATED",
+    "calibration_state": "UNCALIBRATED",
+    "last_change": "2026-11-10"
+  }
+]

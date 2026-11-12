@@ -1,0 +1,29 @@
+{
+  "schema": "tv-display-bounds.registry/1",
+  "rows": [
+    {
+      "name": "gap_bound",
+      "unit": "fraction",
+      "value": "0.05",
+      "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/scanner/display_lists.py:29 (GAP_BOUND); contract northstar-trading@d957d8e9a791f470b6085861a10726dd939bdea1:docs/research/2026-11-02-ns-display-lists-contract.md:22 (lane A's trigger_gap of 0.05; deployments/paper.json:1486 at 8256c16c)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-11"
+    },
+    {
+      "name": "rvol_bound",
+      "unit": "ratio",
+      "value": "2",
+      "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/scanner/display_lists.py:30 (RVOL_BOUND); contract northstar-trading@d957d8e9a791f470b6085861a10726dd939bdea1:docs/research/2026-11-02-ns-display-lists-contract.md:22 (the arm's rvol floor of 2, premarket_gap/scanner.py:212 at d94292fba914c9c19df7582e7b42575bb9da5522)",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-11"
+    },
+    {
+      "name": "max_age_s",
+      "unit": "seconds",
+      "value": 600,
+      "source": "seathatflowsinourveins/northstar-trading@8256c16c31dcb8e53fc726e0c1c77dc2c8d0d4fa:src/northstar_trading/scanner/display_lists.py:31 (MAX_AGE_S); contract northstar-trading@d957d8e9a791f470b6085861a10726dd939bdea1:docs/research/2026-11-02-ns-display-lists-contract.md:24 (default 600); the bridge caps it at the J5 lifetime",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-11"
+    }
+  ]
+}
