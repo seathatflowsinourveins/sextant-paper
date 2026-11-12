@@ -1,0 +1,20 @@
+[Unit]
+Description=Sextant Paper B unattended stage 2 (protection only)
+Documentation=https://github.com/seathatflowsinourveins/sextant/blob/main/deploy/paper/README.md
+After=network-online.target
+# systemd-system.conf(5) defaults, read 2026-11-11; parameters.json: UNCALIBRATED.
+StartLimitIntervalSec=10s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sextant
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin PYTHONUNBUFFERED=1
+# Non-secret run choices only; credentials are injected by NAME for this command.
+EnvironmentFile=%h/.config/sextant/paper/paper-b-stage2.params
+ExecStart=/usr/bin/bash %h/sextant/scripts/with-keys.sh --strict -k ALPACA_PAPER_2_API_KEY -k ALPACA_PAPER_2_SECRET_KEY -- %h/.local/bin/uv run --frozen python -m sextant.paper.node_order --account-config ${B_ACCOUNT_CONFIG} --universe-artifact ${B_CLAIM_LIST} --b-parameters lanes/paper/b-parameters.json --entry-parameters lanes/paper/b-entry-parameters.json --exit-parameters lanes/paper/b-gain-lock.params.json --reentry-parameters lanes/paper/b-reentry-parameters.json --node-parameters lanes/paper/shared-node.params.json --custody-parameters lanes/custody-parameters.json --receipt-dir ${B_RECEIPT_DIR} --duration-s ${B_DURATION_S} --api-key-env ALPACA_PAPER_2_API_KEY --api-secret-env ALPACA_PAPER_2_SECRET_KEY --paper-slot 2 --writer-lease-root ${B_WRITER_LEASE_ROOT} --stream-lease-root ${B_STREAM_LEASE_ROOT} --existing-streams ${B_EXISTING_STREAMS} --lease-source ${B_LEASE_SOURCE}
+# systemd.service(5), read 2026-11-11: every restart repeats ExecStart and admission.
+# Guard exit 2 and an operator stop never restart. Normal duration completion stays stopped.
+Restart=on-failure
+RestartSec=100ms
+RestartPreventExitStatus=2

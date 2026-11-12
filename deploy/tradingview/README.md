@@ -17,8 +17,8 @@ Trade step: ranking, shown to the owner. These units keep the newest ranked move
 ## Install (the lead, after merge)
 
 1. The producer's three required files sit under `$HOME/sextant-data/tradingview-prestage/`: `nasdaqlisted.txt`, `otherlisted.txt` and `symbol_map.json`. The map must cover the whole filtered universe. Their sources are recorded in the producer section of `docs/tradingview.md`.
-2. Stop any hand-started producer first. Both would take the same slot-2 lease, and the second one refuses.
-3. From the merged checkout, run `bash deploy/tradingview/install.sh --producer-memory-max M`. The memory limit has no measurement yet, so it is required.
+2. The lead attends the REST-scope migration and sets its switch time after the exact-SHA Codex max PASS: stop the old producer, verify its lock is released, install from a plain clone at the reviewed SHA, start the new producer and read one accepted tick. Never run two producers. Old and new binaries take different locks and do not exclude each other; an old binary still takes the stream lock. The premarket run order does not wait for this switch. If switched before the attended entry, leave the producer running for that entry.
+3. From that reviewed plain clone, run `bash deploy/tradingview/install.sh --producer-memory-max M`. The memory limit has no measurement yet, so it is required.
    - The one reading so far: a hand-run producer under a 6 GiB cap peaked at 164,057,088 bytes (`systemctl --user show -p MemoryPeak`, read 2026-11-11 03:37 EST). That was idle, before any display segment ran, so it does not size a ranking tick.
    - Read the peak again after a PRE tick and record it with the value chosen.
 4. What the installer does:
@@ -31,6 +31,8 @@ Trade step: ranking, shown to the owner. These units keep the newest ranked move
    - Never run a hand loop while the unit is active, because the loop has no cross-process lock.
 
 ## Refusals
+
+The REST display reservation uses the existing canonical market-data lease root and a distinct fixed scope. It excludes another new producer and owns its own pacer while allowing the sole stream holder to run alongside it. Stream hosts retain their existing scope, lock filename and sourced-zero external-stream admission; this REST lease never authorizes a stream. Keep the account-writer lease unchanged. After the attended switch, measure rate-limit responses and pacing waits with both processes sharing the data credential; coexistence is not a pacing measurement (LEAD-2057, 2026-11-11).
 
 Read `systemctl --user status <unit>` and `journalctl --user -u <unit>`. No monitor rule covers these units yet.
 
