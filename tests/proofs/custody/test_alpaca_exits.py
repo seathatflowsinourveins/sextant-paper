@@ -390,9 +390,9 @@ def test_modify_specific_exits_keep_or_release_the_proposal(exit_by):
         if exit_by == "venue_4xx":
             await node._submit_order(NS(order=order(), params={}))
             node.gateway.sdk.patch = lambda path, body: (_ for _ in ()).throw(_api(422))
-            await node._modify_order(_cmd("modify"))
-            node.generate_order_modify_rejected.assert_called_once()
-            assert not node._proposals  # The venue refused: the reservation is released.
+            await asyncio.gather(node._modify_order(_cmd("modify")), return_exceptions=True)
+            node.generate_order_modify_rejected.assert_not_called()  # undocumented: ambiguous
+            assert node._proposals  # Kept for the read or stream answer (E5 u12).
             return
         task, release = await _park(node, "modify", sent=True)
         try:
