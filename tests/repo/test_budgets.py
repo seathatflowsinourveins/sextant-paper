@@ -1,14 +1,15 @@
 """Paper harness budgets, adopted from the template; changes need a sourced PR.
 
-SOURCE_LINE_CAP is the lead's uncalibrated 25,000-line starting cap (LEAD-1915,
-2026-11-11), based on the approved closure report; it ratchets down after the
+SOURCE_LINE_CAP is the lead's uncalibrated starting cap: 25,000 (LEAD-1915,
+2026-11-11), raised to 25,300 for the remaining reviewed chain links
+(LEAD-2046-addendum-2); it ratchets down after the chain lands and the
 move-only splits. See docs/landscape.md and docs/import-evidence.md.
 """
 
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
-SOURCE_LINE_CAP = 25_000
+SOURCE_LINE_CAP = 25_300
 
 
 def _lines(path: Path) -> int:
