@@ -37,9 +37,17 @@
       "name": "overnight_enabled",
       "unit": "flag",
       "value": 0,
-      "source": "Sextant lead 2026-11-08 19:49:24 EST item 1, LEAD-1949-cadence.md sha256 3d6cfe285839d122b2637f928ea26976e5ed821f1e41209818bcc8b041aecab6; cadence enabled=1 by the 2026-11-09 TV-LOOP ruling, effective at the next session boundary",
+      "source": "LEAD-2218-gate-lineage-and-overnight section 4, 2026-11-11: ship disabled; enablement requires a separately ruled attended start. BOATS REST history only, Alpaca 24/5 Trading docs read 2026-11-11. Existing regular_floor_s and usage_floor_s apply overnight; no new cadence rate or calibration claim.",
       "calibration_state": "UNCALIBRATED",
-      "last_change": "2026-11-09"
+      "last_change": "2026-11-11"
+    },
+    {
+      "name": "overnight_baseline_sessions",
+      "unit": "sessions",
+      "value": 5,
+      "source": "LEAD-2218-gate-lineage-and-overnight section 4, 2026-11-11; T3 lookup smallest complete change permits retaining the existing five-session display baseline policy (Sextant prestage.py/build_segment_baseline at 882d946). Alpaca supplies BOATS minute bars, not a recommended statistical lookback. This is an uncalibrated starting value; actual coverage remains unknown.",
+      "calibration_state": "UNCALIBRATED",
+      "last_change": "2026-11-11"
     },
     {
       "name": "onset_floor_s",
