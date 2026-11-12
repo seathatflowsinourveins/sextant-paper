@@ -1137,14 +1137,20 @@ class AlpacaExecutionClient(ExecutionClient):
         if failures:
             self.failures.extend(failures)
             raise IncompleteCoverage(reports, failures)
-        self.coverage_complete = self._orders_complete = True
+        self._orders_complete = True
+        self.coverage_complete = not self._held and not self._releasing
         return reports
 
     def _provides_bulk_position_coverage(self, instrument_id):
         # A withheld row never authorises a flat inference for its instrument.
-        return self.coverage_complete and all(
-            self._instrument_id(row) != instrument_id
-            for row, _ in (*self.withheld, *self.withheld_positions)
+        return (
+            self.coverage_complete
+            and not self._held
+            and not self._releasing
+            and all(
+                self._instrument_id(row) != instrument_id
+                for row, _ in (*self.withheld, *self.withheld_positions)
+            )
         )
 
     @_traced("positions")
@@ -1175,7 +1181,7 @@ class AlpacaExecutionClient(ExecutionClient):
             self.coverage_complete = False
             self.failures.extend(failures)  # Kept, as the order reader keeps its rows.
             raise IncompleteCoverage(reports, failures)
-        self.coverage_complete = self._orders_complete and not self._held
+        self.coverage_complete = self._orders_complete and not self._held and not self._releasing
         return reports
 
     async def _list_fill_activities(self, params):
