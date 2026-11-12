@@ -196,23 +196,36 @@ def _observe(stream, reference, loop):
     164-168, 204-241); the ack is {"stream": "listening", "data": {"streams":
     ["trade_updates"]}} (websocket-streaming page, read 2026-11-11). Weak, as the callback.
     """
-    dispatch, start = stream._dispatch, stream._start_ws
+    dispatch, start, close = stream._dispatch, stream._start_ws, stream.close
 
-    def notify(kind):
+    async def notify(kind):
+        async def deliver():
+            if owner := reference():
+                owner._on_stream(kind)
+
         if not loop.is_closed():
-            loop.call_soon_threadsafe(lambda: (owner := reference()) and owner._on_stream(kind))
+            await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(deliver(), loop))
 
     async def observed_dispatch(msg):
         if msg.get("stream") == "listening":
             if "trade_updates" in (msg.get("data") or {}).get("streams", ()):
-                notify("listening")
+                await notify("listening")
         await dispatch(msg)
 
     async def observed_start():
-        notify("socket")
+        await notify("socket")
         await start()
 
-    stream._dispatch, stream._start_ws = observed_dispatch, observed_start
+    async def observed_close():
+        # SDK stream.py:216/235 closes before reconnect backoff; revoke before close awaits.
+        await notify("closed")
+        await close()
+
+    stream._dispatch, stream._start_ws, stream.close = (
+        observed_dispatch,
+        observed_start,
+        observed_close,
+    )
 
 
 def _run_stream(stream, owner, ready, closing):
@@ -368,7 +381,7 @@ class AlpacaExecutionClient(ExecutionClient):
         self._closing = Event()
         self._listening: asyncio.Future | None = None  # The venue's first listen ack.
         self.stream_live = False  # trade_updates confirmed on the current socket
-        self.stream_restarts = 0  # sockets the SDK replaced after one was lost
+        self.stream_restarts = 0  # acknowledged socket generations invalidated by a loss
         self.stream_ended = False  # the stream ended while the client was not closing
         self._actions: set[asyncio.Task] = set()
         self._submissions: dict[str, _Command] = {}
@@ -572,25 +585,35 @@ class AlpacaExecutionClient(ExecutionClient):
             if self._listening is not None and not self._listening.done():
                 self._listening.set_result(None)
             elif not self.stream_live:  # Resubscribed after a loss: read the gap back.
-                self.create_task(self._recover(), "alpaca-recovery")
+                self.create_task(self._recover(self.stream_restarts), "alpaca-recovery")
             self.stream_live = True
-        elif self.stream_live:  # A new socket: the one the SDK had was lost.
+        elif self.stream_live:  # SDK close, or a new socket if the close was not observed.
             self.stream_restarts += 1
             self._stream_lost("Alpaca trade stream lost; the SDK is reconnecting")
 
-    async def _recover(self) -> None:
+    async def _recover(self, socket: int | None = None) -> None:
         """Hand the engine one mass status of what the stream missed, as Derive does after each
         reconnect (execution.rs:2563-2575); the engine reconciles it as at startup
         (engine/mod.rs:1119-1121). Fills are the engine's inference from the order reports:
         this client's fill history stays unqualified (``_generate_fill_reports``)."""
+        socket = self.stream_restarts if socket is None else socket
+
+        def current():
+            return self.stream_restarts == socket and (self._listening is None or self.stream_live)
+
+        if not current():  # The acknowledged session owns recovery (Derive execution.rs:780-803).
+            return
         # The engine's report commands have no Python constructor (live/__init__.pyi:543-582);
         # this one carries their fields: the whole history, as the startup composer reads it.
         scope: Any = SimpleNamespace(open_only=False, instrument_id=None, start=None, end=None)
         # Stamped before the first await, as the composer does (python/client/mod.rs:2118-2120):
         # a fill the stream delivers during the reads stays newer than the snapshot.
-        ts_init, socket = self.clock.timestamp_ns(), self.stream_restarts
+        ts_init = self.clock.timestamp_ns()
         try:
             orders = await self._generate_order_status_reports(scope)
+            if not current():
+                self.coverage_complete = False
+                return
             positions = await self._generate_position_status_reports(scope)
         except Exception as exc:
             self.coverage_complete = False
@@ -598,7 +621,7 @@ class AlpacaExecutionClient(ExecutionClient):
                 self.failures.append((None, exc))
             Logger("AlpacaExecution").error(f"Alpaca trade stream recovery failed: {exc}")
             return
-        if self.stream_restarts != socket:  # Lost again during the reads: the next ack reads.
+        if not current():  # Lost again during the reads: the next ack reads.
             self.coverage_complete = False
             return
         venue: Any = self.venue  # Set at construction (live/clients.py); never None here.
