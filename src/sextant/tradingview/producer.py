@@ -87,22 +87,33 @@ class LiveProducer:
     """
 
     def __init__(
-        self, publisher: RankingPublisher, lease: WriterLease, *, sip_authority: str
+        self,
+        publisher: RankingPublisher,
+        lease: WriterLease,
+        *,
+        sip_authority: str = "",
+        feed_authority: str = "",
     ) -> None:
         if (
             lease.scope not in {SCOPE, REST_DISPLAY_SCOPE}
             or not lease.held
-            or not sip_authority.strip()
-            or publisher.feed != "sip"
-            or publisher.segment.name == "OVERNIGHT"
+            or not (feed_authority or sip_authority).strip()
+            or publisher.feed != ("boats" if publisher.segment.name == "OVERNIGHT" else "sip")
+            or (
+                publisher.feed == "boats"
+                and (lease.scope != REST_DISPLAY_SCOPE or not feed_authority.strip())
+            )
             or publisher.sequence != 0
             or publisher.registry.top_n > 1000
         ):
-            raise ValueError("fresh slot-2 SIP publisher, entitlement and held lease required")
+            raise ValueError(
+                "fresh display publisher, feed authority/entitlement source and held lease required"
+            )
         self.publisher, self.lease, self.sip_authority = publisher, lease, sip_authority
+        self.feed_authority = feed_authority or sip_authority
         self.reader = GenerationReader(
             publisher.registry,
-            feed="sip",
+            feed=publisher.feed,
             segment=publisher.segment,
             universe_hash=publisher.universe_hash,
             baseline_hash=publisher.baseline.identity,
@@ -182,6 +193,8 @@ class LiveProducer:
     def on_snapshot(self, response_json: str, *, clocks: Clocks, now: int) -> bool:
         """Raw diagnostics only: aggregate/latest trades cannot seed tick history."""
         try:
+            if self.publisher.feed != "sip":
+                raise ValueError("snapshot diagnostics are SIP-only")
             if not self._admit(clocks, now):
                 return False
             payload = json.loads(response_json, parse_float=Decimal, parse_constant=_invalid_number)
@@ -222,7 +235,9 @@ class LiveProducer:
                 raise ValueError("mapping unavailable")
             record = self.publisher.publish(now=now)
             if record is not None:
-                self.reader.accept_generation(CustomData(ranking_data_type("sip"), record), now=now)
+                self.reader.accept_generation(
+                    CustomData(ranking_data_type(self.publisher.feed), record), now=now
+                )
             record = self.reader.generation
             if not self.reader.fresh(now) or record is None:
                 raise ValueError(self.reader.reason)
@@ -271,6 +286,7 @@ class LiveProducer:
                 "watchlists": {"NS Ranked": members},
                 "provenance": {
                     "sip_authority": self.sip_authority,
+                    "feed_authority": self.feed_authority,
                     "trades": self.provenance.copy(),
                     "snapshot": self.snapshot,
                     "mapping": asdict(mapping_clocks),

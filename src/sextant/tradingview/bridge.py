@@ -171,8 +171,8 @@ def _sources(generation: RankingGeneration, params_hash: str) -> dict[str, Any]:
         raise BridgeError("j5 generation has no rows; lists NOT synced")
     start, end = first.get("start_ns"), first.get("end_ns")
     if (
-        first.get("feed") != "sip"
-        or first.get("segment") not in {"PRE", "RTH", "POST"}
+        first.get("feed") != ("boats" if first.get("segment") == "OVERNIGHT" else "sip")
+        or first.get("segment") not in {"PRE", "RTH", "POST", "OVERNIGHT"}
         or first.get("params_hash") != params_hash
         or first.get("universe_hash")
         != universe_digest(tuple(row.symbol for row in generation.rows))
@@ -269,7 +269,8 @@ def project_display_unit(j5: Mapping[str, Any], *, bounds: DisplayBounds) -> Dis
             _rfc(generation.known_at),
         )
         session = generation.session_date.isoformat()
-        if any(_session(timestamp(text)) != (session, False) for text in clocks):
+        overnight = _sources(generation, str(j5["params_hash"]))["segment"] == "OVERNIGHT"
+        if any(_session(timestamp(text)) != (session, overnight) for text in clocks):
             raise BridgeError("j5 generation session mismatch; lists NOT synced")
         watchlists = j5["watchlists"]
         ranked = sorted(
@@ -348,6 +349,19 @@ def project_display_unit(j5: Mapping[str, Any], *, bounds: DisplayBounds) -> Dis
             "status": "fresh",
             "generation": identity,
         }
+        if overnight:
+            common.update(
+                ranking_context={
+                    "session": "overnight",
+                    "session_date": session,
+                    "intraday_feed": "boats",
+                    "daily_history_feed": "sip",
+                    "daily_history_scope": (
+                        "prior completed XNYS sessions; not BOATS intraday evidence"
+                    ),
+                },
+                research_inputs={"baseline": _sources(generation, str(j5["params_hash"]))},
+            )
         display = {
             "schema": "ns-display-lists/1",
             **common,

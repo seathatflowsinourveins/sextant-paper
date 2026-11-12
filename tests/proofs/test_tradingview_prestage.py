@@ -1028,12 +1028,12 @@ def test_default_prestage_source_is_rest_only_beside_a_stream_holder(
     original = prestage.operator_source
     root = tmp_path / "state" / "leases"
 
-    def checked_source(lease: Any, *, requests_per_minute: int) -> Any:
+    def checked_source(lease: Any, *, requests_per_minute: int, **kwargs: Any) -> Any:
         assert lease.scope == producer.REST_DISPLAY_SCOPE and lease.held
         with pytest.raises(CustodyError):
             with producer.reserve_rest_display(root, paper_slot=2):
                 pytest.fail("second producer admitted")
-        result = original(lease, requests_per_minute=requests_per_minute)
+        result = original(lease, requests_per_minute=requests_per_minute, **kwargs)
         assert lease.pacer is result._bars.client._pacer
         assert result._daily._client is result._bars.client
         observed.append(lease)

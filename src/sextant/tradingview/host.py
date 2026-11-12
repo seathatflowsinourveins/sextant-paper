@@ -32,8 +32,6 @@ from sextant.tradingview.inputs import QUALIFIED
 from sextant.tradingview.producer import Clocks, LiveProducer
 
 VENUE = "SIM"
-MASK_SOURCE = "sip minute bars carry no condition or aggressor mask"
-RECEIPT_SOURCE = "bar fidelity SIP minute bars through the shared REST pacer"
 
 
 def load_symbol_map(path: Path) -> dict[str, str | None]:
@@ -65,14 +63,15 @@ def load_symbol_map(path: Path) -> dict[str, str | None]:
 
 
 class BarFidelityHost:
-    """One segment's bar-fidelity publisher, fed by polled SIP minute bars."""
+    """One segment's bar-fidelity publisher, fed by polled, feed-labelled minute bars."""
 
     def __init__(
         self,
         publisher: RankingPublisher,
         *,
         lease: WriterLease,
-        sip_authority: str,
+        sip_authority: str = "",
+        feed_authority: str = "",
         symbol_map: Mapping[str, str | None],
     ) -> None:
         if not isinstance(symbol_map, Mapping) or not symbol_map:
@@ -80,7 +79,13 @@ class BarFidelityHost:
         self.publisher = publisher
         self.lease = lease
         self.symbol_map = dict(symbol_map)
-        self.producer = LiveProducer(publisher, lease, sip_authority=sip_authority)
+        self.producer = LiveProducer(
+            publisher, lease, sip_authority=sip_authority, feed_authority=feed_authority
+        )
+        self.mask_source = f"{publisher.feed} minute bars carry no condition or aggressor mask"
+        self.receipt_source = (
+            f"bar fidelity {publisher.feed.upper()} minute bars through the shared REST pacer"
+        )
         self._universe = frozenset(publisher.universe)
         self._anchored: set[str] = set()
         self.last_close: dict[str, int] = {}
@@ -142,7 +147,7 @@ class BarFidelityHost:
         return self.producer.heartbeat(at=at, received_ns=received_ns)
 
     def publish(self, path: Path, *, now: int, mapping_clocks: Clocks | None = None) -> dict:
-        clocks = mapping_clocks or Clocks(now, now, RECEIPT_SOURCE)
+        clocks = mapping_clocks or Clocks(now, now, self.receipt_source)
         return self.producer.publish_unit(
             path, now=now, symbol_map=self.symbol_map, mapping_clocks=clocks
         )
@@ -225,7 +230,7 @@ class BarFidelityHost:
             price_eligible=True,
             volume_eligible=True,
             conditions=(),
-            mask_source=MASK_SOURCE,
+            mask_source=self.mask_source,
         )
         return True
 
@@ -256,7 +261,7 @@ class BarFidelityHost:
             price_eligible=True,
             volume_eligible=True,
             conditions=(),
-            mask_source=MASK_SOURCE,
+            mask_source=self.mask_source,
         )
         state = self.publisher.states[symbol]
         self.publisher.states[symbol] = replace(
@@ -264,7 +269,7 @@ class BarFidelityHost:
         )
 
     def _clocks(self, market_ns: int, received_ns: int) -> Clocks:
-        return Clocks(market_ns, received_ns, RECEIPT_SOURCE)
+        return Clocks(market_ns, received_ns, self.receipt_source)
 
     @staticmethod
     def _instrument(symbol: str) -> InstrumentId:

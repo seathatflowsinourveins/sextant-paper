@@ -538,6 +538,9 @@ def test_stream_callback_does_not_hold_client_on_sdk_thread(monkeypatch):
         async def _start_ws(self):
             pass
 
+        async def close(self):
+            pass
+
     stream = Stream()
     monkeypatch.setenv("FIXTURE_KEY", "dummy-key")
     monkeypatch.setenv("FIXTURE_SECRET", "dummy-secret")

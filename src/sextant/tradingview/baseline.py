@@ -1,4 +1,4 @@
-"""Five-session time-matched baseline curves built from SIP minute bars.
+"""Time-matched display baseline curves built from the named feed's minute bars.
 
 Each prior session contributes its own cumulative dollar-volume and trade-count
 curve at every minute offset of the segment; a query interpolates inside each
@@ -43,6 +43,8 @@ def _session_start(day: date, segment: Segment) -> int:
     """
 
     local = (EPOCH + timedelta(microseconds=segment.start_ns // 1000)).astimezone(NY)
+    if segment.name == "OVERNIGHT":
+        day -= timedelta(days=1)
     return _timestamp(datetime.combine(day, local.timetz()))
 
 
@@ -61,11 +63,14 @@ class FiveSessionBaseline:
         dv: tuple[array, ...],
         counts: tuple[array, ...],
         data_digest: str,
+        feed: str = "sip",
     ) -> None:
         if not provenance:
             raise ValueError("A baseline needs provenance")
         if not segment:
             raise ValueError("A baseline names its segment")
+        if feed != ("boats" if segment == "OVERNIGHT" else "sip"):
+            raise ValueError("display baseline feed/segment mismatch")
         if type(end_s) is not int or end_s <= 0 or end_s % 60:
             raise ValueError("A baseline ends on a whole minute")
         if not sessions or len(set(sessions)) != len(sessions):
@@ -86,13 +91,14 @@ class FiveSessionBaseline:
         self.provenance = provenance
         self.dv = dv
         self.counts = counts
-        self.feed = "sip"
+        self.feed = feed
         self.latest_session = max(sessions)
         self._index = {symbol: index for index, symbol in enumerate(symbols)}
         self.identity = sha256(
             json.dumps(
                 {
                     "segment": segment,
+                    "feed": feed,
                     "end_s": end_s,
                     "sessions": [session.isoformat() for session in sessions],
                     "symbols": list(symbols),
@@ -145,6 +151,7 @@ def build_baseline(
     segment: Segment,
     known_at: int,
     provenance: str,
+    feed: str = "sip",
 ) -> FiveSessionBaseline:
     """Accumulate each prior session's minute bars from its own segment start."""
     if not provenance:
@@ -162,13 +169,20 @@ def build_baseline(
     if span <= 0 or span % MINUTE_NS:
         raise ValueError("A baseline segment spans whole minutes")
     points = span // MINUTE_NS + 1
-    if segment.name not in {"PRE", "RTH", "POST"}:
-        raise ValueError("A baseline covers a supplied PRE, RTH or POST segment")
+    if feed != ("boats" if segment.name == "OVERNIGHT" else "sip"):
+        raise ValueError("display baseline feed/segment mismatch")
     dv_curves: list[array] = []
     count_curves: list[array] = []
     digest = sha256()
     for day, bars in ordered:
         session_start = _session_start(day, segment)
+        if segment.name == "OVERNIGHT":
+            if not session_start + span <= known_at <= segment.start_ns:
+                raise ValueError(
+                    "overnight history must be completed and known before this segment"
+                )
+            if not any(session_start <= bar.start_ns < session_start + span for bar in bars):
+                raise ValueError("missing requested overnight session")
         dv = array("q", [0]) * (len(names) * points)
         counts = array("i", [0]) * (len(names) * points)
         deltas: dict[int, list[int]] = {}
@@ -209,4 +223,5 @@ def build_baseline(
         dv=tuple(dv_curves),
         counts=tuple(count_curves),
         data_digest=digest.hexdigest(),
+        feed=feed,
     )
